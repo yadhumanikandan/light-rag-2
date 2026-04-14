@@ -1,0 +1,13 @@
+lightrag-hku
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+openai
+httpx
+aiofiles
+pypdf2
+python-docx
+python-pptx
+openpyxl
+sentence-transformers
