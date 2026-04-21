@@ -1,27 +1,13 @@
-import os
-import shutil
-from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from lightrag import QueryParam
-from app.rag import get_rag, init_rag
-from app.ingest import ingest_file, ingest_directory
-from app.config import UPLOAD_DIR, DOCUMENTS_DIR
+from app.passport import check_document, check_passport
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_rag()
-    yield
-
-
-app = FastAPI(title="Taamul Knowledge Base API", lifespan=lifespan)
+app = FastAPI(title="Document Expiry Checker")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,8 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "frontend")), name="static")
+
+SUPPORTED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+VALID_DOC_TYPES = {"passport", "emirates_id", "trade_license", "ejari"}
 
 
 @app.get("/")
@@ -39,83 +27,48 @@ async def root():
     return FileResponse(str(BASE_DIR / "frontend" / "index.html"))
 
 
-# --- Health check ---
-
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
 
-# --- Query endpoint ---
+@app.post("/check-document")
+async def check_document_endpoint(
+    file: UploadFile = File(...),
+    doc_type: str = Form("passport"),
+):
+    if doc_type not in VALID_DOC_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown document type '{doc_type}'.")
 
-class QueryRequest(BaseModel):
-    question: str
-    mode: str = "hybrid"  # local, global, hybrid
-
-
-class QueryResponse(BaseModel):
-    answer: str
-    mode: str
-
-
-GREETINGS = {"hi", "hello", "hey", "good morning", "good afternoon", "good evening", "howdy"}
-
-
-@app.post("/query", response_model=QueryResponse)
-async def query(req: QueryRequest):
-    if req.mode not in ["local", "global", "hybrid"]:
-        raise HTTPException(status_code=400, detail="mode must be local, global, or hybrid")
-
-    if req.question.strip().lower().rstrip("!.,?") in GREETINGS:
-        return QueryResponse(
-            answer="Hello! I'm the Taamul Knowledge Base assistant. Ask me anything about the documents in the knowledge base.",
-            mode=req.mode,
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Please upload a PDF, JPG, PNG, or WEBP image.",
         )
 
-    rag = get_rag()
+    file_bytes = await file.read()
+    result = await check_document(file_bytes, file.filename, doc_type)
 
-    try:
-        answer = await rag.aquery(req.question, param=QueryParam(mode=req.mode))
-        return QueryResponse(answer=answer or "I couldn't find a relevant answer in the knowledge base.", mode=req.mode)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if "error" in result:
+        raise HTTPException(status_code=422, detail=result["error"])
 
-
-# --- Upload endpoint ---
-
-class IngestResponse(BaseModel):
-    success: bool
-    filename: str
-    chars: int = 0
-    error: str = ""
+    return result
 
 
-@app.post("/upload", response_model=IngestResponse)
-async def upload_document(file: UploadFile = File(...)):
-    supported = [".pdf", ".docx", ".txt", ".md", ".pptx", ".xlsx", ".xls", ".csv"]
+@app.post("/check-passport")
+async def check_passport_endpoint(file: UploadFile = File(...)):
     ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Please upload a PDF, JPG, PNG, or WEBP image.",
+        )
 
-    if ext not in supported:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {supported}")
+    file_bytes = await file.read()
+    result = await check_passport(file_bytes, file.filename)
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    save_path = os.path.join(UPLOAD_DIR, file.filename)
+    if "error" in result:
+        raise HTTPException(status_code=422, detail=result["error"])
 
-    with open(save_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    result = await ingest_file(save_path)
-
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Ingestion failed"))
-
-    return IngestResponse(**result)
-
-
-# --- Bulk ingest from documents folder ---
-
-@app.post("/ingest-all")
-async def ingest_all():
-    """Ingest all files in the /documents directory."""
-    results = await ingest_directory(DOCUMENTS_DIR)
-    return {"results": results, "total": len(results)}
+    return result

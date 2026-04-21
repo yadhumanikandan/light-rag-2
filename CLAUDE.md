@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Taamul Internal Knowledge Base — a private RAG-powered chat system for Taamul Credit Review Services. Staff upload documents (PDF, DOCX, TXT, MD) and query them via a web UI. Runs on a local office network with no internet exposure.
+Document Expiry Checker — a tool for Taamul Credit Review Services that accepts a document scan (PDF or image) and uses GPT-4o vision to extract the expiry date and holder/company details, then returns the validity status. Supported document types: **Passport**, **Emirates ID**, **Trade License**, **Ejari**. Runs on a local office network.
 
 ## Commands
 
@@ -13,7 +13,7 @@ Taamul Internal Knowledge Base — a private RAG-powered chat system for Taamul 
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # then fill in API keys
+cp .env.example .env  # then fill in OPENAI_API_KEY
 ```
 
 **Run (always from project root):**
@@ -24,27 +24,21 @@ uvicorn app.main:app --host 0.0.0.0 --port 8765
 
 **Keep running after terminal close:**
 ```bash
-screen -S taamul-kb
+screen -S taamul-passport
 uvicorn app.main:app --host 0.0.0.0 --port 8765
-# Detach: Ctrl+A then D  |  Re-attach: screen -r taamul-kb
+# Detach: Ctrl+A then D  |  Re-attach: screen -r taamul-passport
 ```
-
-**First-run ingestion:** Drop documents into `documents/`, then `POST /ingest-all`.
 
 ## Architecture
 
 ```
-app/config.py     → loads .env variables
-app/rag.py        → LightRAG singleton + async init
-app/ingest.py     → text extraction (PDF/DOCX/TXT) + async insert into LightRAG
-app/main.py       → FastAPI app with lifespan, REST endpoints
-frontend/         → single index.html (no build step)
-rag_storage/      → LightRAG graph + vector store (auto-created on first run)
-documents/        → drop files here for bulk ingestion via POST /ingest-all
-uploads/          → temp storage for files uploaded through the UI
+app/config.py     → loads OPENAI_API_KEY from .env
+app/passport.py   → PDF/image → base64, per-doc-type GPT-4o prompts, date parsing, status logic
+app/main.py       → FastAPI app, POST /check-document endpoint
+frontend/         → single index.html with 4-tab doc type selector (no build step)
 ```
 
-**Request flow:** Browser → `POST /query` or `POST /upload` → FastAPI → LightRAG (`rag.aquery` / `rag.ainsert`) → DeepSeek LLM + OpenAI embeddings
+**Request flow:** Browser → `POST /check-document` (multipart + `doc_type` field) → FastAPI → `check_document()` → GPT-4o vision → parsed expiry + status → JSON response → frontend renders result card.
 
 ## API Endpoints
 
@@ -52,26 +46,25 @@ uploads/          → temp storage for files uploaded through the UI
 |--------|------|---------|
 | GET | `/` | Serves `frontend/index.html` |
 | GET | `/health` | Health check |
-| POST | `/query` | `{"question": str, "mode": "hybrid"}` → `{"answer": str, "mode": str}` |
-| POST | `/upload` | Multipart file upload → ingests into LightRAG |
-| POST | `/ingest-all` | Ingests all files in `DOCUMENTS_DIR` |
+| POST | `/check-document` | Multipart `file` + `doc_type` form field → `{doc_type, expiry_date, months_remaining, status, primary_name, document_number}` |
+| POST | `/check-passport` | Legacy endpoint (passport only) → `{expiry_date, months_remaining, status, holder_name, passport_number}` |
+
+**`doc_type` values:** `passport`, `emirates_id`, `trade_license`, `ejari`
+
+**Status values:** `valid` (≥ 6 months remaining), `expiring_soon` (0–5 months), `expired` (negative months).
 
 ## Critical Constraints
 
-- **LightRAG async API**: Use `rag.ainsert()` and `rag.aquery()` — the async methods. Do NOT use the synchronous `insert()`/`query()` inside FastAPI async routes.
-- **Storage initialization**: `await rag.initialize_storages()` must be called once at startup — handled by `init_rag()` in the FastAPI `lifespan` context manager.
-- **Query modes**: Only `local`, `global`, `hybrid` are valid. Never use `naive`.
-- **DeepSeek base URL**: Must be exactly `https://api.deepseek.com` — no trailing slash.
-- **Embedding dimension**: `text-embedding-3-small` outputs `1536` dims — this must match `EmbeddingFunc(embedding_dim=1536, ...)`.
-- **`rag_storage/`**: Do not pre-create this directory; LightRAG creates it automatically.
-- **Frontend API calls**: Always use relative URLs (`fetch('/query', ...)`) so the app works behind any IP address.
-- **Run from project root**: `main.py` resolves `frontend/` and static paths using `BASE_DIR = Path(__file__).resolve().parent.parent`.
+- **Supported formats**: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp` — enforced in both `main.py` and the frontend.
+- **PDF handling**: PyMuPDF (`fitz`) renders page 0 at 200 DPI to PNG before base64-encoding. If `pymupdf` is not installed, `check_document()` raises `RuntimeError` at runtime (not import time).
+- **GPT-4o vision**: Uses `detail: "high"` for accuracy. Response is expected to be raw JSON; markdown code fences are stripped before `json.loads`. Each doc type has its own system prompt and expected JSON keys (see `_PROMPTS` and `_FIELD_MAP` in `passport.py`).
+- **Date parsing**: `_parse_date()` tries multiple formats in order; falls back to a regex on ISO fragments. If expiry date cannot be parsed, a partial error dict is returned (not an exception).
+- **`months_remaining` can be negative** for expired documents — the frontend uses `Math.abs()` for display.
+- **Frontend API calls**: Uses relative URL `fetch('/check-document', ...)` — works behind any IP.
+- **`primary_name` / `document_number`**: unified field names in `/check-document` response, replacing per-doc-type names. The legacy `/check-passport` endpoint still returns `holder_name` and `passport_number`.
+- **Run from project root**: `main.py` resolves `frontend/` via `BASE_DIR = Path(__file__).resolve().parent.parent`.
 
 ## Environment Variables
 
 Defined in `.env` (see `.env.example`):
-- `DEEPSEEK_API_KEY` — DeepSeek API key
-- `OPENAI_API_KEY` — OpenAI API key (embeddings only)
-- `RAG_STORAGE_DIR` — LightRAG working directory (default: `./rag_storage`)
-- `UPLOAD_DIR` — temp upload path (default: `./uploads`)
-- `DOCUMENTS_DIR` — bulk ingest source (default: `./documents`)
+- `OPENAI_API_KEY` — required for GPT-4o vision calls
