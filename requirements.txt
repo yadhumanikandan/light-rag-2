@@ -4,3 +4,5 @@ python-multipart
 python-dotenv
 openai
 pymupdf
+python-docx
+smbprotocol

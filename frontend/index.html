@@ -3,38 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Document Expiry Checker</title>
+  <title>KYC Document Generator — NAAS</title>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:           #F0F2F5;
-      --card:         #FFFFFF;
-      --border:       #DDE1E8;
-      --navy:         #1B3454;
-      --navy-light:   #254472;
-      --gold:         #B07D2E;
-      --text:         #1A2332;
-      --text-muted:   #5E7089;
-      --text-light:   #9DAFC5;
-
-      --expired:      #C0392B;
-      --expired-bg:   #FEF2F2;
+      --bg:          #F0F2F5;
+      --card:        #FFFFFF;
+      --border:      #DDE1E8;
+      --navy:        #1B3454;
+      --navy-light:  #254472;
+      --gold:        #B07D2E;
+      --text:        #1A2332;
+      --text-muted:  #5E7089;
+      --text-light:  #9DAFC5;
+      --shadow-sm:   0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow:      0 2px 8px rgba(0,0,0,0.07), 0 4px 24px rgba(0,0,0,0.05);
+      --shadow-lg:   0 4px 16px rgba(0,0,0,0.08), 0 8px 40px rgba(0,0,0,0.06);
+      --radius:      12px;
+      --radius-sm:   8px;
+      --valid:       #166534;
+      --valid-bg:    #F0FDF4;
+      --valid-border:#BBF7D0;
+      --expired:     #C0392B;
+      --expired-bg:  #FEF2F2;
       --expired-border: #FECACA;
-      --soon:         #B45309;
-      --soon-bg:      #FFFBEB;
-      --soon-border:  #FDE68A;
-      --valid:        #166534;
-      --valid-bg:     #F0FDF4;
-      --valid-border: #BBF7D0;
-
-      --shadow-sm:  0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow:     0 2px 8px rgba(0,0,0,0.07), 0 4px 24px rgba(0,0,0,0.05);
-      --shadow-lg:  0 4px 16px rgba(0,0,0,0.08), 0 8px 40px rgba(0,0,0,0.06);
-
-      --radius:     12px;
-      --radius-sm:  8px;
     }
 
     body {
@@ -57,193 +51,186 @@
       justify-content: space-between;
       flex-shrink: 0;
     }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
+    .header-left { display: flex; align-items: center; gap: 12px; }
     .header-logo {
       width: 32px; height: 32px;
       background: rgba(255,255,255,0.12);
       border-radius: 7px;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
     }
     .header-logo svg { width: 17px; height: 17px; color: #fff; }
-
-    .header-org {
-      font-size: 13px; font-weight: 700;
-      color: #fff; letter-spacing: 0.01em;
-    }
-    .header-divider {
-      width: 1px; height: 18px;
-      background: rgba(255,255,255,0.2);
-    }
-    .header-app {
-      font-size: 13px; font-weight: 500;
-      color: rgba(255,255,255,0.7);
-    }
-
+    .header-org  { font-size: 13px; font-weight: 700; color: #fff; }
+    .header-div  { width: 1px; height: 18px; background: rgba(255,255,255,0.2); }
+    .header-app  { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7); }
     .header-right {
       display: flex; align-items: center; gap: 6px;
       font-size: 11px; font-weight: 600;
       color: rgba(255,255,255,0.5);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      letter-spacing: 0.04em; text-transform: uppercase;
     }
     .online-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #4ADE80;
+      width: 6px; height: 6px; border-radius: 50%; background: #4ADE80;
     }
 
     /* ── MAIN ── */
     main {
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 40px 24px;
+      padding: 36px 24px 48px;
     }
 
-    /* ══════════════════════════════
-       DOC TYPE TABS
-    ══════════════════════════════ */
-    .doc-tabs {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 14px;
-      background: var(--card);
-      padding: 4px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
+    .page-title {
+      font-size: 22px; font-weight: 800;
+      color: var(--text); margin-bottom: 6px; text-align: center;
     }
-    .doc-tab {
-      flex: 1;
-      padding: 8px 8px;
-      border: none;
-      border-radius: 6px;
-      font-family: 'Manrope', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--text-muted);
-      background: transparent;
-      transition: all 0.18s;
-      white-space: nowrap;
-      letter-spacing: 0.01em;
-    }
-    .doc-tab:hover {
-      color: var(--text);
-      background: var(--bg);
-    }
-    .doc-tab.active {
-      background: var(--navy);
-      color: #fff;
-      box-shadow: 0 1px 4px rgba(27,52,84,0.25);
+    .page-sub {
+      font-size: 14px; color: var(--text-muted);
+      text-align: center; margin-bottom: 32px; line-height: 1.6;
+      max-width: 540px;
     }
 
-    /* ══════════════════════════════
-       UPLOAD SECTION
-    ══════════════════════════════ */
-    #upload-section {
-      width: 100%; max-width: 520px;
+    /* ── 8-SLOT GRID ── */
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      width: 100%; max-width: 1120px;
+      margin-bottom: 24px;
     }
 
-    .section-heading {
-      font-size: 18px; font-weight: 700;
-      color: var(--text); margin-bottom: 4px;
-    }
-    .section-sub {
-      font-size: 13px; color: var(--text-muted);
-      margin-bottom: 20px; line-height: 1.6;
-    }
-
-    #upload-label { display: block; cursor: pointer; }
-
-    #drop-zone {
+    .doc-slot {
       background: var(--card);
       border: 2px dashed var(--border);
       border-radius: var(--radius);
-      padding: 52px 36px;
+      padding: 24px 20px;
       text-align: center;
-      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      position: relative;
     }
-    #drop-zone:hover,
-    #drop-zone.drag-over {
-      border-color: var(--navy);
-      background: #F6F8FB;
+    .doc-slot:hover { border-color: var(--navy); background: #F6F8FB; }
+    .doc-slot.drag-over { border-color: var(--navy); border-style: solid; background: #EEF3FA; }
+    .doc-slot.has-file {
+      border-style: solid;
+      border-color: #2E75B6;
+      background: #F0F5FF;
+      box-shadow: var(--shadow-sm);
     }
-    #drop-zone.drag-over { border-style: solid; }
 
-    .drop-icon-wrap {
-      width: 64px; height: 64px;
+    .slot-icon-wrap {
+      width: 48px; height: 48px;
       background: #EEF2F8;
-      border-radius: 14px;
+      border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 18px;
+      margin: 0 auto 12px;
       transition: background 0.2s;
     }
-    #drop-zone:hover .drop-icon-wrap,
-    #drop-zone.drag-over .drop-icon-wrap { background: #E0E8F5; }
-    .drop-icon-wrap svg { width: 28px; height: 28px; color: var(--navy); }
+    .doc-slot:hover .slot-icon-wrap,
+    .doc-slot.drag-over .slot-icon-wrap { background: #E0E8F5; }
+    .doc-slot.has-file .slot-icon-wrap  { background: #DBEAFE; }
+    .slot-icon-wrap svg { width: 22px; height: 22px; color: var(--navy); }
+    .doc-slot.has-file .slot-icon-wrap svg { color: #2563EB; }
 
-    .drop-title {
-      font-size: 15px; font-weight: 700;
-      color: var(--text); margin-bottom: 6px;
+    .slot-label {
+      font-size: 13px; font-weight: 700;
+      color: var(--text); margin-bottom: 3px;
     }
-    .drop-desc {
-      font-size: 13px; color: var(--text-muted);
-      line-height: 1.6; margin-bottom: 22px;
+    .slot-hint {
+      font-size: 11px; color: var(--text-muted);
+      font-weight: 500;
+    }
+    .slot-file-name {
+      display: none;
+      margin-top: 8px;
+      font-size: 11px; font-weight: 600;
+      color: #2563EB;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%;
+      padding: 4px 8px;
+      background: #DBEAFE;
+      border-radius: 20px;
+    }
+    .doc-slot.has-file .slot-file-name { display: inline-block; }
+    .doc-slot.has-file .slot-hint      { display: none; }
+
+    .slot-badge {
+      position: absolute; top: 10px; right: 10px;
+      width: 20px; height: 20px;
+      background: #2563EB; border-radius: 50%;
+      display: none; align-items: center; justify-content: center;
+    }
+    .doc-slot.has-file .slot-badge { display: flex; }
+    .slot-badge svg { width: 11px; height: 11px; color: #fff; }
+
+    .slot-clear {
+      position: absolute; top: 8px; right: 8px;
+      width: 22px; height: 22px;
+      background: rgba(37,99,235,0.15);
+      border: none; border-radius: 50%;
+      cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .slot-clear:hover { background: rgba(37,99,235,0.3); }
+    .doc-slot.has-file .slot-clear { display: flex; }
+    .slot-clear svg { width: 12px; height: 12px; color: #2563EB; pointer-events: none; }
+
+    input[type="file"] { display: none; }
+
+    /* ── OPTIONAL TAG ── */
+    .optional-tag {
+      display: inline-block;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--text-light);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 7px;
+      margin-bottom: 8px;
     }
 
-    .browse-btn {
-      display: inline-flex; align-items: center; gap: 7px;
-      background: var(--navy); color: #fff;
+    /* ── GENERATE BUTTON ── */
+    .generate-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--navy);
+      color: #fff;
       font-family: 'Manrope', sans-serif;
-      font-size: 13px; font-weight: 600;
-      padding: 10px 22px; border-radius: var(--radius-sm);
-      border: none; cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s;
+      font-size: 14px; font-weight: 700;
+      padding: 14px 32px;
+      border: none; border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
       letter-spacing: 0.01em;
     }
-    .browse-btn:hover {
+    .generate-btn:hover:not(:disabled) {
       background: var(--navy-light);
-      box-shadow: 0 4px 12px rgba(27,52,84,0.3);
+      box-shadow: 0 4px 16px rgba(27,52,84,0.35);
     }
-    .browse-btn svg { width: 14px; height: 14px; }
+    .generate-btn:disabled {
+      opacity: 0.45; cursor: not-allowed;
+    }
+    .generate-btn svg { width: 16px; height: 16px; }
 
-    .format-note {
-      margin-top: 18px;
+    .btn-note {
       font-size: 11px; color: var(--text-light);
-      font-weight: 500; letter-spacing: 0.05em;
+      margin-top: 10px; text-align: center;
     }
 
-    #file-input { display: none; }
-
-    /* ══════════════════════════════
-       LOADING SECTION
-    ══════════════════════════════ */
+    /* ── LOADING ── */
     #loading-section {
       display: none;
       width: 100%; max-width: 520px;
       text-align: center;
     }
-
     .loading-card {
       background: var(--card);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 52px 40px;
     }
-
-    .spinner-wrap {
-      width: 52px; height: 52px;
-      margin: 0 auto 22px;
-      position: relative;
-    }
+    .spinner-wrap { width: 52px; height: 52px; margin: 0 auto 22px; }
     .spinner {
       width: 52px; height: 52px;
       border: 3px solid #E8ECF2;
@@ -252,18 +239,9 @@
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .loading-title {
-      font-size: 16px; font-weight: 700;
-      color: var(--text); margin-bottom: 6px;
-    }
-    .loading-desc {
-      font-size: 13px; color: var(--text-muted);
-    }
-
-    .loading-dots {
-      display: inline-flex; gap: 5px; margin-top: 4px;
-    }
+    .loading-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .loading-desc  { font-size: 13px; color: var(--text-muted); }
+    .loading-dots  { display: inline-flex; gap: 5px; margin-top: 4px; }
     .loading-dot {
       width: 4px; height: 4px;
       background: var(--text-light); border-radius: 50%;
@@ -273,13 +251,22 @@
     .loading-dot:nth-child(3) { animation-delay: 0.4s; }
     @keyframes dot {
       0%,80%,100% { transform: scale(0.5); opacity: 0.3; }
-      40% { transform: scale(1); opacity: 1; }
+      40%          { transform: scale(1);   opacity: 1; }
     }
+    .loading-steps {
+      margin-top: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .loading-step {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--text-muted);
+      opacity: 0.5; transition: opacity 0.3s;
+    }
+    .loading-step.active { opacity: 1; color: var(--navy); font-weight: 600; }
+    .loading-step svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-    /* ══════════════════════════════
-       RESULT SECTION
-    ══════════════════════════════ */
-    #result-section {
+    /* ── SUCCESS ── */
+    #success-section {
       display: none;
       width: 100%; max-width: 520px;
       animation: fadeUp 0.35s ease;
@@ -288,206 +275,75 @@
       from { opacity: 0; transform: translateY(12px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
-    .result-card {
+    .success-card {
       background: var(--card);
       border-radius: var(--radius);
       box-shadow: var(--shadow-lg);
-      border: 1px solid var(--border);
-      overflow: hidden;
+      border: 1px solid var(--valid-border);
+      padding: 40px 36px;
+      text-align: center;
     }
-
-    /* Coloured top bar */
-    .result-topbar {
-      height: 4px;
-      background: var(--text-light);
-    }
-
-    /* Card header */
-    .result-header {
-      padding: 20px 24px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .result-id-block { display: flex; align-items: center; gap: 12px; }
-
-    .result-doc-icon {
-      width: 42px; height: 42px;
-      background: #EEF2F8;
-      border-radius: 9px;
+    .success-icon {
+      width: 64px; height: 64px;
+      background: var(--valid-bg);
+      border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      margin: 0 auto 20px;
     }
-    .result-doc-icon svg { width: 20px; height: 20px; color: var(--navy); }
+    .success-icon svg { width: 30px; height: 30px; color: var(--valid); }
+    .success-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .success-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 16px; }
 
-    .result-label {
-      font-size: 10px; font-weight: 600;
-      color: var(--text-light); text-transform: uppercase;
-      letter-spacing: 0.07em; margin-bottom: 3px;
-    }
-    .result-holder-name {
-      font-size: 16px; font-weight: 700; color: var(--text);
-    }
-    .result-passport-no {
-      font-size: 12px; color: var(--text-muted);
-      font-weight: 500; margin-top: 2px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Status badge */
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 20px;
-      font-size: 12px; font-weight: 700;
-      letter-spacing: 0.03em;
-      flex-shrink: 0;
-    }
-    .status-badge.expired {
-      background: var(--expired-bg);
-      color: var(--expired);
-      border: 1px solid var(--expired-border);
-    }
-    .status-badge.expiring_soon {
-      background: var(--soon-bg);
-      color: var(--soon);
-      border: 1px solid var(--soon-border);
-    }
-    .status-badge.valid {
-      background: var(--valid-bg);
-      color: var(--valid);
-      border: 1px solid var(--valid-border);
-    }
-    .status-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%; background: currentColor;
-    }
-    .status-badge.valid .status-dot {
-      animation: blink 2s ease-in-out infinite;
-    }
-    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-    /* Result body */
-    .result-body { padding: 22px 24px; }
-
-    /* Expiry row */
-    .expiry-row {
-      display: flex; align-items: flex-end;
-      justify-content: space-between; gap: 16px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+    .nas-badge {
+      display: none;
+      align-items: center; gap: 8px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 8px;
+      padding: 9px 14px;
       margin-bottom: 20px;
-    }
-
-    .expiry-label {
-      font-size: 10px; font-weight: 600;
-      color: var(--text-light);
-      text-transform: uppercase; letter-spacing: 0.07em;
-      margin-bottom: 5px;
-    }
-    .expiry-date {
-      font-size: 24px; font-weight: 700;
-      color: var(--text); letter-spacing: -0.01em;
-    }
-
-    .months-display { text-align: right; flex-shrink: 0; }
-    .months-number {
-      font-size: 52px; font-weight: 800;
-      line-height: 1; letter-spacing: -2px;
-      font-variant-numeric: tabular-nums;
-    }
-    .months-number.expired-color    { color: var(--expired); }
-    .months-number.soon-color       { color: var(--soon); }
-    .months-number.valid-color      { color: #15803D; }
-
-    .months-unit {
-      font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      color: var(--text-light); margin-top: 5px;
-    }
-
-    /* Progress bar */
-    .validity-track { margin-bottom: 18px; }
-    .validity-label-row {
-      display: flex; justify-content: space-between;
-      align-items: center; margin-bottom: 8px;
-    }
-    .validity-label-row span:first-child {
-      font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      color: var(--text-light);
-    }
-    .validity-label-row span:last-child {
       font-size: 12px; font-weight: 600;
-      color: var(--text-muted);
+      color: var(--valid);
+      text-align: left;
     }
-    .progress-bar-bg {
-      height: 7px; background: #EEF0F4;
-      border-radius: 4px; overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%; border-radius: 4px;
-      transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .progress-bar-fill.expired-fill    { background: var(--expired); }
-    .progress-bar-fill.soon-fill       { background: var(--soon); }
-    .progress-bar-fill.valid-fill      { background: #16A34A; }
+    .nas-badge svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .nas-badge-path { font-weight: 700; }
 
-    /* Status message */
-    .status-message {
-      padding: 12px 14px; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 500; line-height: 1.6;
-      display: flex; gap: 10px; align-items: flex-start;
+    .download-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--navy); color: #fff;
+      font-family: 'Manrope', sans-serif;
+      font-size: 14px; font-weight: 700;
+      padding: 13px 28px; border-radius: var(--radius-sm);
+      border: none; cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, box-shadow 0.2s;
     }
-    .status-message.expired {
-      background: var(--expired-bg);
-      border: 1px solid var(--expired-border);
-      color: #991B1B;
+    .download-btn:hover {
+      background: var(--navy-light);
+      box-shadow: 0 4px 16px rgba(27,52,84,0.3);
     }
-    .status-message.expiring_soon {
-      background: var(--soon-bg);
-      border: 1px solid var(--soon-border);
-      color: #92400E;
-    }
-    .status-message.valid {
-      background: var(--valid-bg);
-      border: 1px solid var(--valid-border);
-      color: #14532D;
-    }
-    .status-message svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; }
+    .download-btn svg { width: 16px; height: 16px; }
 
-    /* Reset button */
     .reset-btn {
-      display: flex; align-items: center;
-      justify-content: center; gap: 7px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
       width: 100%; margin-top: 12px; padding: 11px 16px;
-      background: #fff;
-      border: 1px solid var(--border);
+      background: #fff; border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-muted);
       font-family: 'Manrope', sans-serif;
       font-size: 13px; font-weight: 600;
       cursor: pointer; transition: all 0.18s;
     }
-    .reset-btn:hover {
-      background: #F6F8FB;
-      border-color: #C5CBDA;
-      color: var(--text);
-    }
+    .reset-btn:hover { background: #F6F8FB; border-color: #C5CBDA; color: var(--text); }
     .reset-btn svg { width: 14px; height: 14px; }
 
-    /* ══════════════════════════════
-       ERROR SECTION
-    ══════════════════════════════ */
+    /* ── ERROR ── */
     #error-section {
       display: none;
       width: 100%; max-width: 520px;
       animation: fadeUp 0.3s ease;
     }
-
     .error-card {
       background: var(--card);
       border-radius: var(--radius);
@@ -496,7 +352,6 @@
       padding: 40px 32px;
       text-align: center;
     }
-
     .error-icon {
       width: 52px; height: 52px;
       background: var(--expired-bg);
@@ -505,15 +360,8 @@
       margin: 0 auto 18px;
     }
     .error-icon svg { width: 24px; height: 24px; color: var(--expired); }
-
-    .error-card h3 {
-      font-size: 17px; font-weight: 700;
-      color: var(--text); margin-bottom: 8px;
-    }
-    .error-card p {
-      font-size: 13px; color: var(--text-muted);
-      line-height: 1.65; margin-bottom: 24px;
-    }
+    .error-card h3 { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .error-card p  { font-size: 13px; color: var(--text-muted); line-height: 1.65; margin-bottom: 24px; }
 
     /* ── FOOTER ── */
     footer {
@@ -521,20 +369,18 @@
       border-top: 1px solid var(--border);
       text-align: center;
       font-size: 11px; color: var(--text-light);
-      font-weight: 500; letter-spacing: 0.02em;
+      font-weight: 500;
       background: var(--card);
     }
 
     /* ── RESPONSIVE ── */
-    @media (max-width: 540px) {
+    @media (max-width: 1100px) {
+      .doc-grid { grid-template-columns: repeat(2, 1fr); max-width: 740px; }
+    }
+    @media (max-width: 600px) {
       header { padding: 0 18px; }
-      main   { padding: 24px 16px; }
-      #drop-zone { padding: 40px 20px; }
-      .expiry-date   { font-size: 20px; }
-      .months-number { font-size: 42px; }
-      .result-header { flex-wrap: wrap; }
-      .result-header, .result-body { padding-left: 18px; padding-right: 18px; }
-      .doc-tab { font-size: 11px; padding: 7px 5px; }
+      main   { padding: 24px 16px 40px; }
+      .doc-grid { grid-template-columns: 1fr; max-width: 380px; }
     }
   </style>
 </head>
@@ -550,9 +396,9 @@
         <path d="M2 8h20"/>
       </svg>
     </div>
-    <span class="header-org">Taamul Credit Review</span>
-    <div class="header-divider"></div>
-    <span class="header-app">Document Checker</span>
+    <span class="header-org">NAAS</span>
+    <div class="header-div"></div>
+    <span class="header-app">KYC Document Generator</span>
   </div>
   <div class="header-right">
     <div class="online-dot"></div>
@@ -562,126 +408,271 @@
 
 <main>
 
-  <!-- Upload -->
+  <!-- ── Upload section ── -->
   <div id="upload-section">
+    <h1 class="page-title">Generate KYC Profile</h1>
+    <p class="page-sub">Upload the company's documents below. The system will extract the details and generate a formatted KYC Word document.</p>
 
-    <!-- Doc type tabs -->
-    <div class="doc-tabs" role="tablist">
-      <button class="doc-tab active" data-type="passport"      role="tab">Passport</button>
-      <button class="doc-tab"        data-type="emirates_id"   role="tab">Emirates ID</button>
-      <button class="doc-tab"        data-type="trade_license" role="tab">Trade License</button>
-      <button class="doc-tab"        data-type="ejari"         role="tab">Ejari</button>
-    </div>
+    <div class="doc-grid" id="doc-grid">
 
-    <h1 class="section-heading" id="section-heading">Passport Expiry Check</h1>
-    <p class="section-sub" id="section-sub">Upload a passport scan to verify validity and expiry status.</p>
+      <!-- Trade License -->
+      <div class="doc-slot" id="slot-trade_license" data-type="trade_license">
+        <button class="slot-clear" data-type="trade_license" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <div class="slot-label">Trade Licence</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-trade_license"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-trade_license" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
 
-    <label id="upload-label" for="file-input">
-      <div id="drop-zone">
-        <div class="drop-icon-wrap">
-          <svg id="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Ejari -->
+      <div class="doc-slot" id="slot-ejari" data-type="ejari">
+        <button class="slot-clear" data-type="ejari" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <div class="slot-label">EJARI Contract</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-ejari"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-ejari" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+      <!-- MOA -->
+      <div class="doc-slot" id="slot-moa" data-type="moa">
+        <button class="slot-clear" data-type="moa" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Memorandum of Association</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-moa"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-moa" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+      <!-- Insurance -->
+      <div class="doc-slot" id="slot-insurance" data-type="insurance">
+        <button class="slot-clear" data-type="insurance" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Insurance Certificate</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-insurance"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-insurance" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+      <!-- Passport -->
+      <div class="doc-slot" id="slot-passport" data-type="passport">
+        <button class="slot-clear" data-type="passport" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="4" width="20" height="16" rx="3"/>
             <circle cx="9" cy="11" r="2.5"/>
             <path d="M14 9h4M14 13h3"/>
             <path d="M2 8h20"/>
           </svg>
         </div>
-        <p class="drop-title" id="drop-title">Drop passport scan here</p>
-        <p class="drop-desc">Drag and drop a file, or click the button below to browse</p>
-        <span class="browse-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Browse Files
-        </span>
-        <p class="format-note">Supported: PDF, JPG, PNG, WEBP</p>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Passport</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-passport"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-passport" accept=".pdf,.jpg,.jpeg,.png,.webp" />
       </div>
-    </label>
-    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+
+      <!-- Emirates ID -->
+      <div class="doc-slot" id="slot-emirates_id" data-type="emirates_id">
+        <button class="slot-clear" data-type="emirates_id" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <circle cx="8" cy="11" r="2"/>
+            <path d="M13 9h5M13 13h4"/>
+            <path d="M3 9h18"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Emirates ID</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-emirates_id"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-emirates_id" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+      <!-- Residence Visa -->
+      <div class="doc-slot" id="slot-residence_visa" data-type="residence_visa">
+        <button class="slot-clear" data-type="residence_visa" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">UAE Residence Visa</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-residence_visa"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-residence_visa" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+      <!-- VAT Certificate -->
+      <div class="doc-slot" id="slot-vat_certificate" data-type="vat_certificate">
+        <button class="slot-clear" data-type="vat_certificate" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+            <path d="M7 8h.01M11 8h6M7 12h2M11 12h6"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">VAT Certificate</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-vat_certificate"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-vat_certificate" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+      </div>
+
+    </div><!-- /.doc-grid -->
+
+    <button class="generate-btn" id="generate-btn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Generate KYC Report
+    </button>
+    <p class="btn-note">Upload at least one document. Trade Licence + MOA + personal documents produce the most complete KYC profile.</p>
   </div>
 
-  <!-- Loading -->
+  <!-- ── Loading ── -->
   <div id="loading-section">
     <div class="loading-card">
-      <div class="spinner-wrap">
-        <div class="spinner"></div>
-      </div>
-      <p class="loading-title" id="loading-title">Reading Passport</p>
-      <p class="loading-desc">Extracting document details</p>
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+      <p class="loading-title">Generating KYC Report</p>
+      <p class="loading-desc">Extracting data from all documents</p>
       <div class="loading-dots">
         <div class="loading-dot"></div>
         <div class="loading-dot"></div>
         <div class="loading-dot"></div>
       </div>
-    </div>
-  </div>
-
-  <!-- Result -->
-  <div id="result-section">
-    <div class="result-card">
-      <div class="result-topbar" id="res-status-stripe"></div>
-
-      <div class="result-header">
-        <div class="result-id-block">
-          <div class="result-doc-icon">
-            <svg id="res-doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="8" r="4"/>
-              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-            </svg>
-          </div>
-          <div>
-            <div class="result-label" id="res-name-label">Passport Holder</div>
-            <div class="result-holder-name" id="res-name">—</div>
-            <div class="result-passport-no" id="res-doc-number">—</div>
-          </div>
+      <div class="loading-steps">
+        <div class="loading-step" id="step-extract">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Reading &amp; extracting document data via AI
         </div>
-        <div class="status-badge" id="res-status-badge">
-          <div class="status-dot"></div>
-          <span id="res-status-text">—</span>
+        <div class="loading-step" id="step-build">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Building KYC Word document
         </div>
-      </div>
-
-      <div class="result-body">
-        <div class="expiry-row">
-          <div>
-            <div class="expiry-label" id="res-expiry-label">Date of Expiry</div>
-            <div class="expiry-date" id="res-expiry-date">—</div>
-          </div>
-          <div class="months-display">
-            <div class="months-number" id="res-months">—</div>
-            <div class="months-unit" id="res-months-unit">months left</div>
-          </div>
-        </div>
-
-        <div class="validity-track">
-          <div class="validity-label-row">
-            <span>Remaining Validity</span>
-            <span id="res-validity-pct">—</span>
-          </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="res-progress-fill" style="width:0%"></div>
-          </div>
-        </div>
-
-        <div class="status-message" id="res-status-msg">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="res-msg-icon"></svg>
-          <span id="res-msg-text"></span>
+        <div class="loading-step" id="step-done">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Ready for download
         </div>
       </div>
     </div>
-
-    <button class="reset-btn" id="reset-btn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-        <path d="M3 3v5h5"/>
-      </svg>
-      Check Another Document
-    </button>
   </div>
 
-  <!-- Error -->
+  <!-- ── Success ── -->
+  <div id="success-section">
+    <div class="success-card">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <polyline points="9 15 11 17 15 13"/>
+        </svg>
+      </div>
+      <h2 class="success-title">KYC Report Ready</h2>
+      <p class="success-desc" id="success-desc">Your KYC document has been generated successfully. Click below to download.</p>
+
+      <div class="nas-badge" id="nas-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="6" width="20" height="14" rx="2"/>
+          <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+          <circle cx="12" cy="13" r="1"/><path d="M12 14v3"/>
+        </svg>
+        <span>Saved to network storage — BANKS / <span class="nas-badge-path" id="nas-folder-name"></span></span>
+      </div>
+
+      <a class="download-btn" id="download-link" href="#" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download KYC Report (.docx)
+      </a>
+      <button class="reset-btn" id="reset-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        Generate Another Report
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Error ── -->
   <div id="error-section">
     <div class="error-card">
       <div class="error-icon">
@@ -691,8 +682,8 @@
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
       </div>
-      <h3 id="error-title">Could Not Read Document</h3>
-      <p id="error-msg">Please upload a clear, well-lit scan of the document.</p>
+      <h3>Generation Failed</h3>
+      <p id="error-msg">An error occurred. Please check your files and try again.</p>
       <button class="reset-btn" id="error-reset-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -706,244 +697,196 @@
 </main>
 
 <footer>
-  Document data is processed securely and not stored &nbsp;&middot;&nbsp; For internal use only
+  National Assurance &amp; Advisory Services FZ LLC (NAAS) &nbsp;&middot;&nbsp; Document data is processed securely and not stored &nbsp;&middot;&nbsp; For internal use only
 </footer>
 
 <script>
-  // ── Doc type configuration ──
-  const DOC_CONFIG = {
-    passport: {
-      heading:      'Passport Expiry Check',
-      sub:          'Upload a passport scan to verify validity and expiry status.',
-      dropTitle:    'Drop passport scan here',
-      loadingTitle: 'Reading Passport',
-      nameLabel:    'Passport Holder',
-      numberPrefix: 'No.',
-      expiryLabel:  'Date of Expiry',
-      errorTitle:   'Could Not Read Passport',
-      docIcon: `<rect x="2" y="4" width="20" height="16" rx="3"/>
-                <circle cx="9" cy="11" r="2.5"/>
-                <path d="M14 9h4M14 13h3"/>
-                <path d="M2 8h20"/>`,
-      resultIcon: `<circle cx="12" cy="8" r="4"/>
-                   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>`,
-    },
-    emirates_id: {
-      heading:      'Emirates ID Expiry Check',
-      sub:          'Upload an Emirates ID scan to verify validity and expiry status.',
-      dropTitle:    'Drop Emirates ID here',
-      loadingTitle: 'Reading Emirates ID',
-      nameLabel:    'ID Holder',
-      numberPrefix: 'ID No.',
-      expiryLabel:  'Date of Expiry',
-      errorTitle:   'Could Not Read Emirates ID',
-      docIcon: `<rect x="3" y="5" width="18" height="14" rx="2"/>
-                <circle cx="8" cy="11" r="2"/>
-                <path d="M13 9h5M13 13h4"/>
-                <path d="M3 9h18"/>`,
-      resultIcon: `<circle cx="12" cy="8" r="4"/>
-                   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>`,
-    },
-    trade_license: {
-      heading:      'Trade License Expiry Check',
-      sub:          'Upload a Trade License document to verify validity and renewal status.',
-      dropTitle:    'Drop Trade License here',
-      loadingTitle: 'Reading Trade License',
-      nameLabel:    'Company',
-      numberPrefix: 'Licence No.',
-      expiryLabel:  'Expiry / Renewal Date',
-      errorTitle:   'Could Not Read Trade License',
-      docIcon: `<rect x="3" y="3" width="18" height="18" rx="2"/>
-                <path d="M3 9h18"/>
-                <path d="M9 21V9"/>`,
-      resultIcon: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                   <polyline points="9 22 9 12 15 12 15 22"/>`,
-    },
-    ejari: {
-      heading:      'Ejari Expiry Check',
-      sub:          'Upload an Ejari contract or certificate to verify validity and expiry status.',
-      dropTitle:    'Drop Ejari document here',
-      loadingTitle: 'Reading Ejari',
-      nameLabel:    'Tenant',
-      numberPrefix: 'Ejari No.',
-      expiryLabel:  'Contract End Date',
-      errorTitle:   'Could Not Read Ejari',
-      docIcon: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>`,
-      resultIcon: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                   <polyline points="9 22 9 12 15 12 15 22"/>`,
-    },
-  };
+  const ALLOWED_EXT = ['pdf','jpg','jpeg','png','webp'];
+  const DOC_TYPES   = ['trade_license', 'ejari', 'moa', 'insurance', 'passport', 'emirates_id',
+                       'residence_visa', 'vat_certificate'];
 
-  let selectedDocType = 'passport';
+  const files = { trade_license: null, ejari: null, moa: null, insurance: null, passport: null,
+                  emirates_id: null, residence_visa: null, vat_certificate: null };
 
   const uploadSection  = document.getElementById('upload-section');
   const loadingSection = document.getElementById('loading-section');
-  const resultSection  = document.getElementById('result-section');
+  const successSection = document.getElementById('success-section');
   const errorSection   = document.getElementById('error-section');
-  const fileInput      = document.getElementById('file-input');
-  const dropZone       = document.getElementById('drop-zone');
+  const generateBtn    = document.getElementById('generate-btn');
 
-  // ── Tab switching ──
-  document.querySelectorAll('.doc-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      selectedDocType = tab.dataset.type;
-      applyDocTypeUI(selectedDocType);
+  // ── Slot wiring ──────────────────────────────────────────────────────────────
+
+  DOC_TYPES.forEach(type => {
+    const slot  = document.getElementById(`slot-${type}`);
+    const input = document.getElementById(`file-${type}`);
+    const fname = document.getElementById(`fname-${type}`);
+
+    // Click to open file picker
+    slot.addEventListener('click', e => {
+      if (e.target.closest('.slot-clear')) return;
+      input.click();
+    });
+
+    // File input change
+    input.addEventListener('change', () => {
+      if (input.files[0]) setFile(type, input.files[0]);
+    });
+
+    // Clear button
+    slot.querySelector('.slot-clear').addEventListener('click', e => {
+      e.stopPropagation();
+      clearFile(type);
+    });
+
+    // Drag and drop
+    slot.addEventListener('dragenter', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+    slot.addEventListener('dragover',  e => { e.preventDefault(); slot.classList.add('drag-over'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!ALLOWED_EXT.includes(ext)) {
+          alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
+          return;
+        }
+        setFile(type, file);
+      }
     });
   });
 
-  function applyDocTypeUI(type) {
-    const cfg = DOC_CONFIG[type];
-    document.getElementById('section-heading').textContent = cfg.heading;
-    document.getElementById('section-sub').textContent     = cfg.sub;
-    document.getElementById('drop-title').textContent      = cfg.dropTitle;
-    document.getElementById('loading-title').textContent   = cfg.loadingTitle;
-    document.getElementById('drop-icon').innerHTML         = cfg.docIcon;
-  }
-
-  // ── Drag-and-drop ──
-  ['dragenter','dragover'].forEach(evt =>
-    document.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('drag-over'); })
-  );
-  ['dragleave','drop'].forEach(evt =>
-    document.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); })
-  );
-  document.addEventListener('drop', e => {
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  });
-
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) processFile(fileInput.files[0]);
-  });
-
-  // ── Process file ──
-  async function processFile(file) {
+  function setFile(type, file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    if (!['pdf','jpg','jpeg','png','webp'].includes(ext)) {
-      showError('Unsupported file type. Please upload a PDF, JPG, PNG, or WEBP image.');
+    if (!ALLOWED_EXT.includes(ext)) {
+      alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
       return;
     }
+    files[type] = file;
+    document.getElementById(`slot-${type}`).classList.add('has-file');
+    const fname = document.getElementById(`fname-${type}`);
+    fname.textContent = file.name.length > 28 ? file.name.slice(0, 25) + '...' : file.name;
+    updateBtn();
+  }
+
+  function clearFile(type) {
+    files[type] = null;
+    document.getElementById(`file-${type}`).value = '';
+    document.getElementById(`slot-${type}`).classList.remove('has-file');
+    document.getElementById(`fname-${type}`).textContent = '';
+    updateBtn();
+  }
+
+  function updateBtn() {
+    // Require at least trade_license OR any one document to enable
+    const anyFile = DOC_TYPES.some(t => files[t] !== null);
+    generateBtn.disabled = !anyFile;
+  }
+
+  // ── Generate ─────────────────────────────────────────────────────────────────
+
+  generateBtn.addEventListener('click', generateKyc);
+
+  async function generateKyc() {
+    const anyFile = DOC_TYPES.some(t => files[t] !== null);
+    if (!anyFile) return;
 
     show('loading');
+    animateSteps();
 
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('doc_type', selectedDocType);
+    DOC_TYPES.forEach(type => {
+      if (files[type]) formData.append(type, files[type]);
+    });
 
     try {
-      const res  = await fetch('/check-document', { method: 'POST', body: formData });
-      const data = await res.json();
+      const res = await fetch('/generate-kyc', { method: 'POST', body: formData });
 
       if (!res.ok) {
-        showError(data.detail || 'Could not read the document. Please try a clearer image.');
+        let msg = 'Failed to generate KYC report.';
+        try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+        showError(msg);
         return;
       }
 
-      renderResult(data);
+      // Get filename from Content-Disposition
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const fnMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = fnMatch ? fnMatch[1] : 'KYC_Report.docx';
+
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+
+      // Activate final loading step
+      document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step-done').classList.add('active');
+
+      await new Promise(r => setTimeout(r, 600));
+
+      document.getElementById('download-link').href     = url;
+      document.getElementById('download-link').download = filename;
+
+      // Count docs for success message
+      const count = DOC_TYPES.filter(t => files[t]).length;
+      document.getElementById('success-desc').textContent =
+        `KYC profile generated from ${count} document${count !== 1 ? 's' : ''}. Click below to download.`;
+
+      // Show NAS save confirmation if server archived the file
+      const nasBadge  = document.getElementById('nas-badge');
+      const nasFolder = res.headers.get('X-NAS-Folder');
+      if (nasFolder) {
+        document.getElementById('nas-folder-name').textContent = nasFolder;
+        nasBadge.style.display = 'flex';
+      } else {
+        nasBadge.style.display = 'none';
+      }
+
+      show('success');
+
     } catch (err) {
       showError('Connection error. Please check the server is running and try again.');
     }
   }
 
-  // ── Render result ──
-  function renderResult(data) {
-    const { doc_type, expiry_date, months_remaining, status, primary_name, document_number } = data;
-    const cfg = DOC_CONFIG[doc_type] || DOC_CONFIG.passport;
-
-    // Name / number
-    document.getElementById('res-name-label').textContent  = cfg.nameLabel;
-    document.getElementById('res-name').textContent        = primary_name   || 'Unknown';
-    document.getElementById('res-doc-number').textContent  = document_number
-      ? `${cfg.numberPrefix} ${document_number}` : `${cfg.numberPrefix} —`;
-
-    // Expiry label
-    document.getElementById('res-expiry-label').textContent = cfg.expiryLabel;
-    document.getElementById('res-expiry-date').textContent  = expiry_date || '—';
-
-    // Result card icon
-    document.getElementById('res-doc-icon').innerHTML = cfg.resultIcon;
-
-    // Months display
-    const monthsEl  = document.getElementById('res-months');
-    const unitEl    = document.getElementById('res-months-unit');
-    const absMonths = Math.abs(months_remaining);
-
-    if (status === 'expired') {
-      monthsEl.textContent = absMonths;
-      unitEl.textContent   = absMonths === 1 ? 'month ago' : 'months ago';
-    } else {
-      monthsEl.textContent = months_remaining;
-      unitEl.textContent   = months_remaining === 1 ? 'month left' : 'months left';
-    }
-
-    const colorClass = { expired: 'expired-color', expiring_soon: 'soon-color', valid: 'valid-color' }[status];
-    monthsEl.className = 'months-number ' + colorClass;
-
-    // Badge
-    const badge     = document.getElementById('res-status-badge');
-    const badgeText = document.getElementById('res-status-text');
-    const labels    = { expired: 'Expired', expiring_soon: 'Expiring Soon', valid: 'Valid' };
-    badge.className = 'status-badge ' + status;
-    badgeText.textContent = labels[status];
-
-    // Progress bar
-    const maxMonths = 120;
-    const pct = status === 'expired' ? 0 : Math.min(100, Math.round((months_remaining / maxMonths) * 100));
-    const fillEl = document.getElementById('res-progress-fill');
-    fillEl.className = 'progress-bar-fill ' + { expired: 'expired-fill', expiring_soon: 'soon-fill', valid: 'valid-fill' }[status];
-    document.getElementById('res-validity-pct').textContent = status === 'expired' ? 'Expired' : `${pct}% remaining`;
-    setTimeout(() => { fillEl.style.width = pct + '%'; }, 80);
-
-    // Status message
-    const msgBox  = document.getElementById('res-status-msg');
-    const msgIcon = document.getElementById('res-msg-icon');
-    const msgText = document.getElementById('res-msg-text');
-    msgBox.className = 'status-message ' + status;
-
-    const icons = {
-      expired:       '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-      expiring_soon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-      valid:         '<polyline points="20 6 9 17 4 12"/>',
-    };
-    const messages = {
-      expired:       `This document expired ${absMonths} ${absMonths === 1 ? 'month' : 'months'} ago. It must be renewed immediately.`,
-      expiring_soon: `This document expires in ${months_remaining} ${months_remaining === 1 ? 'month' : 'months'}. Renewal is strongly advised.`,
-      valid:         `This document is valid for ${months_remaining} more ${months_remaining === 1 ? 'month' : 'months'}.`,
-    };
-
-    msgIcon.innerHTML  = icons[status];
-    msgText.textContent = messages[status];
-
-    // Top stripe
-    const stripe = document.getElementById('res-status-stripe');
-    stripe.style.background = { expired: '#DC2626', expiring_soon: '#D97706', valid: '#16A34A' }[status];
-
-    show('result');
+  let stepTimer = null;
+  function animateSteps() {
+    const steps = ['step-extract', 'step-build'];
+    document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
+    let i = 0;
+    document.getElementById(steps[0]).classList.add('active');
+    stepTimer = setInterval(() => {
+      i++;
+      if (i < steps.length) {
+        document.getElementById(steps[i-1]).classList.remove('active');
+        document.getElementById(steps[i]).classList.add('active');
+      } else {
+        clearInterval(stepTimer);
+      }
+    }, 3500);
   }
 
-  // ── Error ──
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
   function showError(msg) {
-    const cfg = DOC_CONFIG[selectedDocType] || DOC_CONFIG.passport;
-    document.getElementById('error-title').textContent = cfg.errorTitle;
-    document.getElementById('error-msg').textContent   = msg;
+    clearInterval(stepTimer);
+    document.getElementById('error-msg').textContent = msg;
     show('error');
   }
 
-  // ── Section switcher ──
   function show(section) {
     uploadSection.style.display  = section === 'upload'  ? 'block' : 'none';
     loadingSection.style.display = section === 'loading' ? 'block' : 'none';
-    resultSection.style.display  = section === 'result'  ? 'block' : 'none';
+    successSection.style.display = section === 'success' ? 'block' : 'none';
     errorSection.style.display   = section === 'error'   ? 'block' : 'none';
   }
 
-  // ── Reset ──
   function reset() {
-    fileInput.value = '';
-    document.getElementById('res-progress-fill').style.width = '0%';
+    clearInterval(stepTimer);
+    DOC_TYPES.forEach(t => clearFile(t));
+    document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('nas-badge').style.display = 'none';
+    document.getElementById('nas-folder-name').textContent = '';
     show('upload');
   }
 
