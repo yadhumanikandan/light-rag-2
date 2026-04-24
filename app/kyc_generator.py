@@ -160,9 +160,18 @@ def _insurance_label(valid_to_str, today: date) -> tuple[str, str]:
 
 # ── Value helpers ─────────────────────────────────────────────────────────────
 
+def _s(val) -> str:
+    """Safely stringify a value — handles lists the LLM may return instead of strings."""
+    if val is None:
+        return ""
+    if isinstance(val, list):
+        return " ".join(str(v) for v in val)
+    return str(val)
+
+
 def _v(d: dict, k: str, default: str = "—") -> str:
     val = d.get(k)
-    return str(val).strip() if val else default
+    return _s(val).strip() if val else default
 
 
 def _normalise(s: str) -> str:
@@ -170,11 +179,25 @@ def _normalise(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+def _name_tokens(s: str) -> set[str]:
+    """Return a set of lowercased, ASCII-folded name parts (order-insensitive)."""
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    return {t for t in re.sub(r"[^a-z\s]", "", s.lower()).split() if t}
+
+
+def _names_match(a: str, b: str) -> bool:
+    """Order-insensitive name comparison: same tokens = match."""
+    na, nb = _normalise(a), _normalise(b)
+    if na == nb or na in nb or nb in na:
+        return True
+    # Token-set comparison (handles reordered name parts)
+    return _name_tokens(a) == _name_tokens(b)
+
+
 def _match2(a: str, b: str) -> str:
     if not a or a == "—" or not b or b == "—":
         return "—"
-    na, nb = _normalise(a), _normalise(b)
-    return "✓" if (na == nb or na in nb or nb in na) else "⚠"
+    return "✓" if _names_match(a, b) else "⚠"
 
 
 def _match3(a: str, b: str, c: str) -> str:
@@ -185,8 +208,7 @@ def _match3(a: str, b: str, c: str) -> str:
         return "✓"
     for i in range(len(vals)):
         for j in range(i + 1, len(vals)):
-            na, nb = _normalise(vals[i]), _normalise(vals[j])
-            if na != nb and na not in nb and nb not in na:
+            if not _names_match(vals[i], vals[j]):
                 return "⚠"
     return "✓"
 
@@ -674,6 +696,12 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
             rows.append(("Insured Name",   _v(ins, "insured_name")))
         if ins.get("coverage_type"):
             rows.append(("Coverage Type",  _v(ins, "coverage_type")))
+        if ins.get("sum_insured"):
+            rows.append(("Sum Insured",    _v(ins, "sum_insured")))
+        if ins.get("premium"):
+            rows.append(("Premium",        _v(ins, "premium")))
+        if ins.get("deductible"):
+            rows.append(("Deductible / Excess", _v(ins, "deductible")))
         if ins.get("valid_from"):
             rows.append(("Valid From",     _fmt_date(ins["valid_from"])))
         if ins.get("valid_to"):
@@ -727,10 +755,10 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
     if tl_up or moa_up or pp_up or eid_up:
         _section_header(doc, n, "Owner / Shareholder Details"); n += 1
         owner_name = (
-            (moa.get("owner_name") or "").strip() or
-            (tl.get("owner_name")  or "").strip() or
-            (pp.get("holder_name") or "").strip() or
-            (eid.get("holder_name") or "").strip()
+            _s(moa.get("owner_name")).strip() or
+            _s(tl.get("owner_name")).strip() or
+            _s(pp.get("holder_name")).strip() or
+            _s(eid.get("holder_name")).strip()
         )
         rows: list[tuple] = [("Full Name (English)", owner_name or "—")]
         if moa.get("owner_name_arabic"):
@@ -777,6 +805,8 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
                 rows.append(("Visa / Permit No.",   _v(visa, "visa_number")))
             if visa.get("file_number"):
                 rows.append(("File No.",            _v(visa, "file_number")))
+            if visa.get("uid_number"):
+                rows.append(("Unified No. (UID)",   _v(visa, "uid_number")))
             if visa.get("profession"):
                 rows.append(("Profession",          _v(visa, "profession")))
             if visa.get("employer"):
@@ -1160,8 +1190,8 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
                           "✓  Full match — Owner & Manager confirmed" if all_nv
                           else "⚠  Discrepancies detected — see Section 13"))
     if tl_up and ej_up:
-        ej_tn = (ej.get("tenant_name")  or "").strip()
-        tl_cn = (tl.get("company_name") or "").strip()
+        ej_tn = _s(ej.get("tenant_name")).strip()
+        tl_cn = _s(tl.get("company_name")).strip()
         m = _match2(ej_tn, tl_cn) if (ej_tn and tl_cn) else "—"
         if m == "✓":
             checklist.append(("Tenant Name Match (EJARI vs TL)",
@@ -1169,8 +1199,8 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
         elif m == "⚠":
             checklist.append(("Tenant Name Match (EJARI vs TL)",
                               f"⚠  EJARI: {ej_tn}  |  TL: {tl_cn}"))
-        ej_ln = (ej.get("licence_number") or "").strip()
-        tl_ln = (tl.get("license_number") or "").strip()
+        ej_ln = _s(ej.get("licence_number")).strip()
+        tl_ln = _s(tl.get("license_number")).strip()
         lm = _match2(ej_ln, tl_ln) if (ej_ln and tl_ln) else "—"
         if lm == "✓":
             checklist.append(("Licence No. Match (EJARI vs TL)", "✓  Consistent"))
@@ -1353,3 +1383,501 @@ def generate_kyc_document(extracted: dict, today: date) -> bytes:
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ── Report data builder for frontend display ──────────────────────────────────
+
+def build_report_data(extracted: dict, today: date) -> dict:
+    """
+    Build structured report data for the frontend preview page.
+    Returns { company_name, panels, flags }.
+
+    Panel types:
+      "docstatus" — document validity table
+      "kv"        — key/value detail table
+      "match"     — cross-document comparison table
+    """
+
+    # ── helpers ────────────────────────────────────────────────────────────────
+    def _msym(s: str) -> str:
+        """Map ✓/⚠/— to ok/warn/dash for the frontend."""
+        if s == "✓": return "ok"
+        if s == "⚠": return "warn"
+        return "dash"
+
+    def _sc(s: str) -> str:
+        if s == "✓": return "valid"
+        if s == "⚠": return "expiring_soon"
+        if s == "✗": return "expired"
+        return "no_expiry"
+
+    def _st(s: str, active: str = "VALID") -> str:
+        if s == "✓": return active
+        if s == "⚠": return "EXPIRING SOON"
+        if s == "✗": return "EXPIRED"
+        return "N/A"
+
+    def _kv(label: str, value: str, sym: str = "") -> dict:
+        return {"label": label, "value": value, "sym": sym}
+
+    def _mr(field: str, values: list, match: str) -> dict:
+        return {"field": field, "values": values, "match": match}
+
+    # ── unpack ─────────────────────────────────────────────────────────────────
+    tl   = dict(extracted.get("trade_license")   or {})
+    ej   = dict(extracted.get("ejari")            or {})
+    moa  = dict(extracted.get("moa")              or {})
+    ins  = dict(extracted.get("insurance")        or {})
+    pp   = dict(extracted.get("passport")         or {})
+    eid  = dict(extracted.get("emirates_id")      or {})
+    visa = dict(extracted.get("residence_visa")   or {})
+    vat  = dict(extracted.get("vat_certificate")  or {})
+    for d in [tl, ej, moa, ins, pp, eid, visa, vat]:
+        d.pop("error", None)
+
+    tl_up   = bool(tl);  ej_up  = bool(ej);  moa_up  = bool(moa); ins_up  = bool(ins)
+    pp_up   = bool(pp);  eid_up = bool(eid); visa_up = bool(visa); vat_up  = bool(vat)
+
+    tl_lbl,   tl_sym   = _expiry_label(tl.get("expiry_date"),   today)
+    ej_lbl,   ej_sym   = _expiry_label(ej.get("expiry_date"),   today)
+    pp_lbl,   pp_sym   = _expiry_label(pp.get("expiry_date"),   today)
+    eid_lbl,  eid_sym  = _expiry_label(eid.get("expiry_date"),  today)
+    visa_lbl, visa_sym = _expiry_label(visa.get("expiry_date"), today)
+    ins_lbl,  ins_sym  = _insurance_label(ins.get("valid_to"),  today)
+
+    company_name = (_v(tl, "company_name") or _v(moa, "company_name") or _v(vat, "company_name") or "—")
+
+    panels: list[dict] = []
+    flags:  list[dict] = []
+
+    def _flag(ftype, docs, field, val_a, val_b, action):
+        flags.append({"type": ftype, "docs": docs, "field": field,
+                      "val_a": val_a, "val_b": val_b, "action": action})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 1 — Document Validity Status
+    # ══════════════════════════════════════════════════════════════════════════
+    ds_rows: list[dict] = []
+    if tl_up:
+        ds_rows.append({"doc": "Trade Licence",   "name": _v(tl,  "company_name"),
+                        "number": _v(tl,  "license_number"),
+                        "expiry": _fmt_date(tl.get("expiry_date")),
+                        "sc": _sc(tl_sym), "st": _st(tl_sym), "sym": tl_sym})
+        if tl_sym in ("⚠","✗"):
+            _flag("Trade Licence Validity", "Trade Licence", "Expiry Date", tl_lbl, "",
+                  "Renew Trade Licence immediately." if tl_sym == "✗"
+                  else "Initiate renewal — expires within 30 days.")
+    if ej_up:
+        ds_rows.append({"doc": "EJARI Contract",  "name": _v(ej,  "tenant_name"),
+                        "number": _v(ej,  "ejari_number"),
+                        "expiry": _fmt_date(ej.get("expiry_date")),
+                        "sc": _sc(ej_sym), "st": _st(ej_sym), "sym": ej_sym})
+        if ej_sym in ("⚠","✗"):
+            _flag("EJARI Validity", "EJARI", "Lease End Date", ej_lbl, "",
+                  "Renew EJARI / tenancy contract." if ej_sym == "✗"
+                  else "EJARI renewal due within 30 days.")
+    if ins_up:
+        ds_rows.append({"doc": "Insurance",       "name": _v(ins, "insured_name"),
+                        "number": _v(ins, "policy_number"),
+                        "expiry": _fmt_date(ins.get("valid_to")),
+                        "sc": _sc(ins_sym), "st": _st(ins_sym, "ACTIVE"), "sym": ins_sym})
+        if ins_sym in ("⚠","✗"):
+            _flag("Insurance Validity", "Insurance Certificate", "Valid To", ins_lbl, "",
+                  "Renew insurance policy." if ins_sym == "✗"
+                  else "Insurance expiring within 30 days.")
+    if pp_up:
+        ds_rows.append({"doc": "Passport",        "name": _v(pp,  "holder_name"),
+                        "number": _v(pp,  "passport_number"),
+                        "expiry": _fmt_date(pp.get("expiry_date")),
+                        "sc": _sc(pp_sym), "st": _st(pp_sym), "sym": pp_sym})
+        if pp_sym in ("⚠","✗"):
+            _flag("Passport Validity", "Passport", "Expiry Date", pp_lbl, "",
+                  "Renew passport immediately." if pp_sym == "✗"
+                  else "Passport expiring within 30 days.")
+    if eid_up:
+        ds_rows.append({"doc": "Emirates ID",     "name": _v(eid, "holder_name"),
+                        "number": _v(eid, "id_number"),
+                        "expiry": _fmt_date(eid.get("expiry_date")),
+                        "sc": _sc(eid_sym), "st": _st(eid_sym), "sym": eid_sym})
+        if eid_sym in ("⚠","✗"):
+            _flag("Emirates ID Validity", "Emirates ID", "Expiry Date", eid_lbl, "",
+                  "Renew Emirates ID immediately." if eid_sym == "✗"
+                  else "Emirates ID expiring within 30 days.")
+    if visa_up:
+        ds_rows.append({"doc": "Residence Visa",  "name": _v(visa,"holder_name"),
+                        "number": _v(visa,"visa_number"),
+                        "expiry": _fmt_date(visa.get("expiry_date")),
+                        "sc": _sc(visa_sym), "st": _st(visa_sym), "sym": visa_sym})
+        if visa_sym in ("⚠","✗"):
+            _flag("Residence Visa Validity", "UAE Residence Visa", "Expiry Date", visa_lbl, "",
+                  "Renew residence visa immediately." if visa_sym == "✗"
+                  else "Visa expiring within 30 days.")
+    if moa_up:
+        ds_rows.append({"doc": "MOA",             "name": _v(moa, "company_name"),
+                        "number": _v(moa, "contract_number"),
+                        "expiry": "—", "sc": "no_expiry", "st": "N/A", "sym": "—"})
+    if vat_up:
+        ds_rows.append({"doc": "VAT Certificate", "name": _v(vat, "company_name"),
+                        "number": _v(vat, "trn"),
+                        "expiry": "—", "sc": "no_expiry", "st": "N/A", "sym": "—"})
+    panels.append({"title": "Document Validity Status", "type": "docstatus", "rows": ds_rows})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 2 — Company & Licence Details
+    # ══════════════════════════════════════════════════════════════════════════
+    if tl_up or moa_up or vat_up:
+        kv: list[dict] = []
+        cn = _v(tl,"company_name","") or _v(moa,"company_name","") or _v(vat,"company_name","")
+        if cn and cn != "—":
+            kv.append(_kv("Company Name (English)", cn))
+        cn_ar = _v(tl,"company_name_arabic","") or _v(moa,"company_name_arabic","")
+        if cn_ar and cn_ar != "—": kv.append(_kv("Company Name (Arabic)", cn_ar))
+        lf = _v(tl,"legal_form","") or _v(moa,"legal_form","")
+        if lf and lf != "—":   kv.append(_kv("Legal Type", lf))
+        if tl.get("license_number"):     kv.append(_kv("Trade Licence No.", _v(tl,"license_number")))
+        if tl.get("register_number"):    kv.append(_kv("Commercial Register No.", _v(tl,"register_number")))
+        if tl.get("dcci_membership_number"): kv.append(_kv("DCCI Membership No.", _v(tl,"dcci_membership_number")))
+        if tl.get("issuing_authority"):  kv.append(_kv("Issuing Authority", _v(tl,"issuing_authority")))
+        if tl.get("license_type"):       kv.append(_kv("Licence Type", _v(tl,"license_type")))
+        if tl.get("issue_date"):         kv.append(_kv("Issue Date", _fmt_date(tl["issue_date"])))
+        if tl.get("expiry_date"):        kv.append(_kv("Licence Expiry", tl_lbl, tl_sym))
+        if tl.get("last_renewal_date"):  kv.append(_kv("Last Renewal Date", _fmt_date(tl["last_renewal_date"])))
+        if tl.get("last_renewal_fee"):   kv.append(_kv("Last Renewal Fee", _v(tl,"last_renewal_fee")))
+        if tl.get("business_activity"):  kv.append(_kv("Business Activity", _v(tl,"business_activity")))
+        if tl.get("activity_scope"):     kv.append(_kv("Activity Scope", _v(tl,"activity_scope")))
+        if tl.get("registered_address"): kv.append(_kv("Registered Address", _v(tl,"registered_address")))
+        if tl.get("unit_number"):        kv.append(_kv("Unit No.", _v(tl,"unit_number")))
+        if tl.get("building_name"):      kv.append(_kv("Building", _v(tl,"building_name")))
+        if tl.get("area"):               kv.append(_kv("Area", _v(tl,"area")))
+        if tl.get("parcel_id"):          kv.append(_kv("Parcel ID / Land DM No.", _v(tl,"parcel_id")))
+        if tl.get("makani_number"):      kv.append(_kv("Makani No.", _v(tl,"makani_number")))
+        if tl.get("phone_fax"):          kv.append(_kv("Phone / Fax", _v(tl,"phone_fax")))
+        if tl.get("mobile"):             kv.append(_kv("Mobile", _v(tl,"mobile")))
+        if tl.get("email"):              kv.append(_kv("Email", _v(tl,"email")))
+        if vat.get("trn"):               kv.append(_kv("VAT TRN", _v(vat,"trn")))
+        if vat.get("effective_date"):    kv.append(_kv("VAT Effective Date", _fmt_date(vat["effective_date"])))
+        if moa.get("share_capital"):     kv.append(_kv("Share Capital", _v(moa,"share_capital")))
+        if moa.get("shares_count"):      kv.append(_kv("Number of Shares", _v(moa,"shares_count")))
+        if moa.get("moa_date"):          kv.append(_kv("MOA Date", _fmt_date(moa["moa_date"])))
+        if moa.get("contract_number"):   kv.append(_kv("MOA Contract No.", _v(moa,"contract_number")))
+        if moa.get("financial_year"):    kv.append(_kv("Financial Year", _v(moa,"financial_year")))
+        if kv: panels.append({"title": "Company & Licence Details", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 3 — Owner & Management
+    # ══════════════════════════════════════════════════════════════════════════
+    if tl_up or moa_up:
+        kv = []
+        own = _v(moa,"owner_name","") or _v(tl,"owner_name","")
+        if own and own != "—":  kv.append(_kv("Owner Name (English)", own))
+        own_ar = _v(moa,"owner_name_arabic","")
+        if own_ar and own_ar != "—": kv.append(_kv("Owner Name (Arabic)", own_ar))
+        own_nat = _v(moa,"owner_nationality","") or _v(tl,"owner_nationality","")
+        if own_nat and own_nat != "—": kv.append(_kv("Owner Nationality", own_nat))
+        if moa.get("owner_shares"):   kv.append(_kv("Shareholding", _v(moa,"owner_shares")))
+        if moa.get("owner_liability"):kv.append(_kv("Liability", _v(moa,"owner_liability")))
+        pno = _v(moa,"owner_person_number","") or _v(tl,"owner_person_number","")
+        if pno and pno != "—": kv.append(_kv("Person No. (Licence)", pno))
+        mgr = _v(moa,"manager_name","") or _v(tl,"manager_name","")
+        if mgr and mgr != "—":  kv.append(_kv("Manager Name (English)", mgr))
+        mgr_ar = _v(moa,"manager_name_arabic","")
+        if mgr_ar and mgr_ar != "—": kv.append(_kv("Manager Name (Arabic)", mgr_ar))
+        mgr_nat = _v(moa,"manager_nationality","") or _v(tl,"manager_nationality","")
+        if mgr_nat and mgr_nat != "—": kv.append(_kv("Manager Nationality", mgr_nat))
+        if moa.get("manager_role"):   kv.append(_kv("Manager Role", _v(moa,"manager_role")))
+        if moa.get("signing_authority"): kv.append(_kv("Signing Authority", _v(moa,"signing_authority")))
+        if moa.get("signing_mode"):   kv.append(_kv("Signing Mode", _v(moa,"signing_mode")))
+        if moa.get("authorised_signatory"): kv.append(_kv("Authorised Signatory", _v(moa,"authorised_signatory")))
+        if kv: panels.append({"title": "Owner & Management", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 4 — EJARI Details
+    # ══════════════════════════════════════════════════════════════════════════
+    if ej_up:
+        kv = [_kv("EJARI Contract No.", _v(ej,"ejari_number"))]
+        if ej.get("registration_date"): kv.append(_kv("Registration Date", _fmt_date(ej["registration_date"])))
+        if ej.get("registered_by"):     kv.append(_kv("Registered by", _v(ej,"registered_by")))
+        if ej.get("tenant_name"):       kv.append(_kv("Tenant Name", _v(ej,"tenant_name")))
+        if ej.get("licence_number"):    kv.append(_kv("Trade Licence No. (EJARI)", _v(ej,"licence_number")))
+        if ej.get("licence_issuer"):    kv.append(_kv("Licence Issuer (EJARI)", _v(ej,"licence_issuer")))
+        if ej.get("start_date"):        kv.append(_kv("Lease Start Date", _fmt_date(ej["start_date"])))
+        if ej.get("expiry_date"):       kv.append(_kv("Lease End Date", ej_lbl, ej_sym))
+        if ej.get("annual_rent"):       kv.append(_kv("Annual Rent", _v(ej,"annual_rent")))
+        if ej.get("security_deposit"):  kv.append(_kv("Security Deposit", _v(ej,"security_deposit")))
+        if ej.get("ejari_fees_paid"):   kv.append(_kv("EJARI Fees Paid", _v(ej,"ejari_fees_paid")))
+        if ej.get("unit_number"):       kv.append(_kv("Unit No.", _v(ej,"unit_number")))
+        if ej.get("building_name"):     kv.append(_kv("Building", _v(ej,"building_name")))
+        if ej.get("area"):              kv.append(_kv("Area", _v(ej,"area")))
+        if ej.get("unit_type"):         kv.append(_kv("Unit Type", _v(ej,"unit_type")))
+        if ej.get("size"):              kv.append(_kv("Size", _v(ej,"size")))
+        if ej.get("plot_number"):       kv.append(_kv("Plot No.", _v(ej,"plot_number")))
+        if ej.get("land_dm_parcel_id"): kv.append(_kv("Land DM No. (Parcel ID)", _v(ej,"land_dm_parcel_id")))
+        if ej.get("makani_number"):     kv.append(_kv("Makani No.", _v(ej,"makani_number")))
+        if ej.get("landlord_name"):     kv.append(_kv("Landlord Name", _v(ej,"landlord_name")))
+        if ej.get("landlord_nationality"): kv.append(_kv("Landlord Nationality", _v(ej,"landlord_nationality")))
+        if ej.get("property_manager"): kv.append(_kv("Property Manager", _v(ej,"property_manager")))
+        panels.append({"title": "EJARI — Tenancy Contract", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 5 — MOA Details
+    # ══════════════════════════════════════════════════════════════════════════
+    if moa_up:
+        kv = []
+        if moa.get("contract_number"):    kv.append(_kv("Contract No.", _v(moa, "contract_number")))
+        if moa.get("moa_date"):           kv.append(_kv("Date of MOA", _fmt_date(moa["moa_date"])))
+        if moa.get("company_name"):       kv.append(_kv("Company Name (English)", _v(moa, "company_name")))
+        if moa.get("company_name_arabic"):kv.append(_kv("Company Name (Arabic)", _v(moa, "company_name_arabic")))
+        if moa.get("legal_form"):         kv.append(_kv("Legal Form", _v(moa, "legal_form")))
+        if moa.get("company_duration"):   kv.append(_kv("Company Duration", _v(moa, "company_duration")))
+        if moa.get("financial_year"):     kv.append(_kv("Financial Year", _v(moa, "financial_year")))
+        if moa.get("disputes_jurisdiction"): kv.append(_kv("Disputes Jurisdiction", _v(moa, "disputes_jurisdiction")))
+        if moa.get("share_capital"):      kv.append(_kv("Share Capital", _v(moa, "share_capital")))
+        if moa.get("shares_count"):       kv.append(_kv("Number of Shares", _v(moa, "shares_count")))
+        if moa.get("capital_currency"):   kv.append(_kv("Currency", _v(moa, "capital_currency")))
+        if moa.get("capital_deposited"):  kv.append(_kv("Capital Deposited", _v(moa, "capital_deposited")))
+        if moa.get("statutory_reserve"):  kv.append(_kv("Statutory Reserve", _v(moa, "statutory_reserve")))
+        if moa.get("owner_name"):         kv.append(_kv("Owner / Shareholder", _v(moa, "owner_name")))
+        if moa.get("owner_nationality"):  kv.append(_kv("Owner Nationality", _v(moa, "owner_nationality")))
+        if moa.get("owner_shares"):       kv.append(_kv("Shareholding Detail", _v(moa, "owner_shares")))
+        if moa.get("owner_liability"):    kv.append(_kv("Owner Liability", _v(moa, "owner_liability")))
+        if moa.get("owner_residence"):    kv.append(_kv("Owner Residence", _v(moa, "owner_residence")))
+        if moa.get("manager_name"):       kv.append(_kv("Manager Name", _v(moa, "manager_name")))
+        if moa.get("manager_nationality"):kv.append(_kv("Manager Nationality", _v(moa, "manager_nationality")))
+        if moa.get("manager_role"):       kv.append(_kv("Manager Role", _v(moa, "manager_role")))
+        if moa.get("manager_appointment_term"): kv.append(_kv("Appointment Term", _v(moa, "manager_appointment_term")))
+        if moa.get("manager_residence"):  kv.append(_kv("Manager Residence", _v(moa, "manager_residence")))
+        if moa.get("signing_authority"):  kv.append(_kv("Signing Authority", _v(moa, "signing_authority")))
+        if moa.get("authorised_signatory"):kv.append(_kv("Authorised Signatory", _v(moa, "authorised_signatory")))
+        if moa.get("signing_mode"):       kv.append(_kv("Signing Mode", _v(moa, "signing_mode")))
+        if moa.get("bank_open_close"):    kv.append(_kv("Open / Close Bank Accounts", _v(moa, "bank_open_close")))
+        if moa.get("bank_operate"):       kv.append(_kv("Operate Bank Accounts", _v(moa, "bank_operate")))
+        if moa.get("bank_cheques"):       kv.append(_kv("Sign Cheques", _v(moa, "bank_cheques")))
+        if moa.get("bank_transfer"):      kv.append(_kv("Transfer / Withdraw Funds", _v(moa, "bank_transfer")))
+        if moa.get("bank_tenders"):       kv.append(_kv("Sign Tenders & Contracts", _v(moa, "bank_tenders")))
+        if moa.get("bank_lc"):            kv.append(_kv("Issue Letters of Credit", _v(moa, "bank_lc")))
+        if moa.get("bank_vat"):           kv.append(_kv("VAT / FTA Returns", _v(moa, "bank_vat")))
+        if moa.get("bank_delegate"):      kv.append(_kv("Delegate Authority", _v(moa, "bank_delegate")))
+        if kv: panels.append({"title": "Memorandum of Association (MOA)", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 6 — Insurance Details
+    # ══════════════════════════════════════════════════════════════════════════
+    if ins_up:
+        kv = []
+        if ins.get("insurer"):           kv.append(_kv("Insurer", _v(ins, "insurer")))
+        if ins.get("insurer_arabic"):    kv.append(_kv("Insurer (Arabic)", _v(ins, "insurer_arabic")))
+        if ins.get("policy_number"):     kv.append(_kv("Policy No.", _v(ins, "policy_number")))
+        if ins.get("insured_name"):      kv.append(_kv("Insured Name", _v(ins, "insured_name")))
+        if ins.get("insured_name_arabic"):kv.append(_kv("Insured Name (Arabic)", _v(ins, "insured_name_arabic")))
+        if ins.get("coverage_type"):     kv.append(_kv("Coverage Type", _v(ins, "coverage_type")))
+        if ins.get("sum_insured"):       kv.append(_kv("Sum Insured", _v(ins, "sum_insured")))
+        if ins.get("premium"):           kv.append(_kv("Premium", _v(ins, "premium")))
+        if ins.get("deductible"):        kv.append(_kv("Deductible / Excess", _v(ins, "deductible")))
+        if ins.get("valid_from"):        kv.append(_kv("Valid From", _fmt_date(ins["valid_from"])))
+        if ins.get("valid_to"):          kv.append(_kv("Valid To", ins_lbl, ins_sym))
+        if kv: panels.append({"title": "Insurance Certificate", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 7 — VAT Certificate Details
+    # ══════════════════════════════════════════════════════════════════════════
+    if vat_up:
+        kv = []
+        if vat.get("trn"):                   kv.append(_kv("Tax Registration No. (TRN)", _v(vat, "trn")))
+        if vat.get("company_name"):          kv.append(_kv("Registered Name", _v(vat, "company_name")))
+        if vat.get("company_name_arabic"):   kv.append(_kv("Registered Name (Arabic)", _v(vat, "company_name_arabic")))
+        if vat.get("effective_date"):        kv.append(_kv("Effective Date", _fmt_date(vat["effective_date"])))
+        if vat.get("registered_address"):    kv.append(_kv("Registered Address", _v(vat, "registered_address")))
+        if vat.get("registered_address_arabic"): kv.append(_kv("Address (Arabic)", _v(vat, "registered_address_arabic")))
+        if vat.get("return_period"):         kv.append(_kv("Return Period", _v(vat, "return_period")))
+        if vat.get("registration_type"):     kv.append(_kv("Registration Type", _v(vat, "registration_type")))
+        kv.append(_kv("Expiry", "No expiry date — ongoing registration"))
+        if kv: panels.append({"title": "VAT Registration Certificate", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 8 — Personal Documents
+    # ══════════════════════════════════════════════════════════════════════════
+    if pp_up or eid_up or visa_up:
+        kv = []
+        if eid_up and eid:
+            kv.append(_kv("─── EMIRATES ID ─────────────────────────────────────────────────", ""))
+            if eid.get("holder_name"):    kv.append(_kv("Name",          _v(eid,"holder_name")))
+            if eid.get("id_number"):      kv.append(_kv("ID No.",         _v(eid,"id_number")))
+            if eid.get("date_of_birth"):  kv.append(_kv("Date of Birth",  _fmt_date(eid["date_of_birth"])))
+            if eid.get("nationality"):    kv.append(_kv("Nationality",    _v(eid,"nationality")))
+            if eid.get("expiry_date"):    kv.append(_kv("Expiry Date",    eid_lbl, eid_sym))
+        if pp_up and pp:
+            kv.append(_kv("─── PASSPORT ────────────────────────────────────────────────────", ""))
+            if pp.get("holder_name"):     kv.append(_kv("Name",           _v(pp,"holder_name")))
+            if pp.get("passport_number"): kv.append(_kv("Passport No.",   _v(pp,"passport_number")))
+            if pp.get("nationality"):     kv.append(_kv("Nationality",    _v(pp,"nationality")))
+            if pp.get("date_of_birth"):   kv.append(_kv("Date of Birth",  _fmt_date(pp["date_of_birth"])))
+            if pp.get("place_of_birth"):  kv.append(_kv("Place of Birth", _v(pp,"place_of_birth")))
+            if pp.get("issue_date"):      kv.append(_kv("Issue Date",     _fmt_date(pp["issue_date"])))
+            if pp.get("expiry_date"):     kv.append(_kv("Expiry Date",    pp_lbl, pp_sym))
+        if visa_up and visa:
+            kv.append(_kv("─── UAE RESIDENCE VISA ──────────────────────────────────────────", ""))
+            if visa.get("holder_name"):   kv.append(_kv("Name",                _v(visa,"holder_name")))
+            if visa.get("visa_number"):   kv.append(_kv("Visa / Permit No.",   _v(visa,"visa_number")))
+            if visa.get("file_number"):   kv.append(_kv("File No.",            _v(visa,"file_number")))
+            if visa.get("uid_number"):    kv.append(_kv("Unified No. (UID)",   _v(visa,"uid_number")))
+            if visa.get("profession"):    kv.append(_kv("Profession",          _v(visa,"profession")))
+            if visa.get("employer"):      kv.append(_kv("Sponsor / Employer",  _v(visa,"employer")))
+            if visa.get("nationality"):   kv.append(_kv("Nationality",         _v(visa,"nationality")))
+            if visa.get("gender"):        kv.append(_kv("Gender",              _v(visa,"gender")))
+            if visa.get("date_of_birth"): kv.append(_kv("Date of Birth",       _fmt_date(visa["date_of_birth"])))
+            if visa.get("passport_number"): kv.append(_kv("Passport No.",      _v(visa,"passport_number")))
+            if visa.get("issue_date"):    kv.append(_kv("Issue Date",          _fmt_date(visa["issue_date"])))
+            if visa.get("expiry_date"):   kv.append(_kv("Expiry Date",         visa_lbl, visa_sym))
+        if kv: panels.append({"title": "Personal Documents", "type": "kv", "rows": kv})
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 6 — Address Cross-Verification
+    # ══════════════════════════════════════════════════════════════════════════
+    if (tl_up and ej_up) or (tl_up and vat_up) or (ej_up and vat_up):
+        tl_unit  = _v(tl,  "unit_number", "");     ej_unit  = _v(ej, "unit_number", "")
+        tl_bldg  = _v(tl,  "building_name", "");   ej_bldg  = _v(ej, "building_name", "")
+        tl_area  = _v(tl,  "area", "");            ej_area  = _v(ej, "area", "")
+        tl_parc  = _v(tl,  "parcel_id", "");       ej_parc  = _v(ej, "land_dm_parcel_id", "")
+        tl_addr  = _v(tl,  "registered_address", ""); vat_addr = _v(vat, "registered_address", "")
+        ej_tenant  = _v(ej, "tenant_name", "");    tl_company = _v(tl, "company_name", "")
+        ej_lic_no  = _v(ej, "licence_number", ""); tl_lic_no  = _v(tl, "license_number", "")
+
+        if vat_up and (tl_up or ej_up):
+            hdrs = ["Field", "Trade Licence", "EJARI", "VAT Certificate", "Match"]
+            mr_rows = [
+                _mr("Company / Tenant Name",
+                    [tl_company or "—", ej_tenant or "—", _v(vat,"company_name") or "—"],
+                    _msym(_match3(tl_company, ej_tenant, _v(vat,"company_name","")))),
+                _mr("Full Address",
+                    [tl_addr or "—", (ej_bldg+" "+ej_area).strip() or "—", vat_addr or "—"],
+                    _msym(_match3(tl_addr, (ej_bldg+" "+ej_area).strip(), vat_addr))),
+                _mr("Unit No.",      [tl_unit or "—", ej_unit or "—", "—"], _msym(_match2(tl_unit, ej_unit))),
+                _mr("Building",      [tl_bldg or "—", ej_bldg or "—", "—"], _msym(_match2(tl_bldg, ej_bldg))),
+                _mr("Area",          [tl_area or "—", ej_area or "—", "—"], _msym(_match2(tl_area, ej_area))),
+                _mr("Parcel ID / Land DM", [tl_parc or "—", ej_parc or "—", "—"], _msym(_match2(tl_parc, ej_parc))),
+                _mr("Licence No.",   [tl_lic_no or "—", ej_lic_no or "—", "—"], _msym(_match2(tl_lic_no, ej_lic_no))),
+            ]
+        else:
+            hdrs = ["Field", "Trade Licence", "EJARI", "Match"]
+            mr_rows = [
+                _mr("Company / Tenant Name", [tl_company or "—", ej_tenant or "—"],  _msym(_match2(tl_company, ej_tenant))),
+                _mr("Licence No.",           [tl_lic_no  or "—", ej_lic_no  or "—"], _msym(_match2(tl_lic_no,  ej_lic_no))),
+                _mr("Unit No.",              [tl_unit    or "—", ej_unit    or "—"], _msym(_match2(tl_unit,    ej_unit))),
+                _mr("Building",              [tl_bldg    or "—", ej_bldg    or "—"], _msym(_match2(tl_bldg,    ej_bldg))),
+                _mr("Area",                  [tl_area    or "—", ej_area    or "—"], _msym(_match2(tl_area,    ej_area))),
+                _mr("Parcel ID / Land DM",   [tl_parc    or "—", ej_parc    or "—"], _msym(_match2(tl_parc,    ej_parc))),
+            ]
+        panels.append({"title": "Address Cross-Verification", "type": "match", "headers": hdrs, "rows": mr_rows})
+        for r in mr_rows:
+            if r["match"] == "warn":
+                _flag(f"Address Mismatch — {r['field']}", " vs ".join(hdrs[1:-1]),
+                      r["field"], r["values"][0] if r["values"] else "—",
+                      r["values"][1] if len(r["values"]) > 1 else "—",
+                      "Verify with client and update the relevant document.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 7 — Name Verification: Trade Licence vs MOA
+    # ══════════════════════════════════════════════════════════════════════════
+    if tl_up and moa_up:
+        tl_own  = _v(tl,  "owner_name", "");        moa_own  = _v(moa, "owner_name", "")
+        tl_onat = _v(tl,  "owner_nationality", "");  moa_onat = _v(moa, "owner_nationality", "")
+        tl_oshr = _v(tl,  "owner_share", "");        moa_oshr = _v(moa, "owner_shares", "")
+        tl_mgr  = _v(tl,  "manager_name", "");       moa_mgr  = _v(moa, "manager_name", "")
+        tl_mnat = _v(tl,  "manager_nationality", "");moa_mnat = _v(moa, "manager_nationality", "")
+        tl_mrol = _v(tl,  "manager_role", "");       moa_mrol = _v(moa, "manager_role", "") or _v(moa,"signing_authority","")
+        nv_rows = [
+            _mr("Owner Name",          [tl_own  or "—", moa_own  or "—"], _msym(_match2(tl_own,  moa_own))),
+            _mr("Owner Nationality",   [tl_onat or "—", moa_onat or "—"], _msym(_match2(tl_onat, moa_onat))),
+            _mr("Owner Share",         [tl_oshr or "—", moa_oshr or "—"], _msym(_match2(tl_oshr, moa_oshr))),
+            _mr("Manager Name",        [tl_mgr  or "—", moa_mgr  or "—"], _msym(_match2(tl_mgr,  moa_mgr))),
+            _mr("Manager Nationality", [tl_mnat or "—", moa_mnat or "—"], _msym(_match2(tl_mnat, moa_mnat))),
+            _mr("Manager Role",        [tl_mrol or "—", moa_mrol or "—"], _msym(_match2(tl_mrol, moa_mrol))),
+        ]
+        panels.append({"title": "Name Verification — Trade Licence vs MOA", "type": "match",
+                        "headers": ["Field", "Trade Licence", "MOA", "Match"], "rows": nv_rows})
+        for r in nv_rows:
+            if r["match"] == "warn":
+                _flag(f"Name Mismatch — {r['field']}", "Trade Licence vs MOA",
+                      r["field"], r["values"][0], r["values"][1],
+                      "Align names across Trade Licence and MOA.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PANEL 8 — Personal Document Cross-Verification
+    # ══════════════════════════════════════════════════════════════════════════
+    if eid_up or pp_up or visa_up:
+        eid_name  = _v(eid,  "holder_name", "") if eid_up  else ""
+        pp_name   = _v(pp,   "holder_name", "") if pp_up   else ""
+        visa_name = _v(visa, "holder_name", "") if visa_up else ""
+        present   = [x for x in [eid_name, pp_name, visa_name] if x and x != "—"]
+
+        # 8A — Name cross-match
+        if len(present) >= 2:
+            m3 = _match3(eid_name, pp_name, visa_name)
+            panels.append({
+                "title": "Personal Document Name Cross-Match",
+                "type": "match",
+                "headers": ["Field", "Emirates ID", "Passport", "UAE Residence Visa", "Match"],
+                "rows": [_mr("Full Name",
+                             [eid_name or "—", pp_name or "—", visa_name or "—"],
+                             _msym(m3))]
+            })
+            if m3 == "⚠":
+                _flag("Personal Name Mismatch", "EID / Passport / Visa", "Holder Name",
+                      f"EID: {eid_name} | PP: {pp_name} | Visa: {visa_name}", "",
+                      "Names must be consistent across all personal identity documents.")
+
+        # 8B — Passport number: passport vs visa
+        if pp_up and visa_up and pp.get("passport_number") and visa.get("passport_number"):
+            pp_no   = _v(pp,   "passport_number")
+            visa_pp = _v(visa, "passport_number")
+            mpp = _match2(pp_no, visa_pp)
+            panels.append({
+                "title": "Passport Number — Passport vs Residence Visa",
+                "type": "match",
+                "headers": ["Field", "Passport", "UAE Residence Visa", "Match"],
+                "rows": [_mr("Passport No.", [pp_no, visa_pp], _msym(mpp))]
+            })
+            if mpp == "⚠":
+                _flag("Passport No. Mismatch", "Passport vs Residence Visa",
+                      "Passport No.", pp_no, visa_pp,
+                      "Verify — visa may reference an expired passport.")
+
+        # 8C — Personal name vs corporate name
+        ref_name = (_v(moa,"owner_name","") or _v(tl,"owner_name","") or
+                    _v(moa,"manager_name","") or _v(tl,"manager_name",""))
+        if ref_name and ref_name != "—" and present:
+            corp_rows: list[dict] = []
+            for label, name in [("Emirates ID", eid_name), ("Passport", pp_name), ("Residence Visa", visa_name)]:
+                if name and name != "—":
+                    m = _match2(name, ref_name)
+                    corp_rows.append(_mr(f"{label} vs TL / MOA", [name, ref_name], _msym(m)))
+                    if m == "⚠":
+                        _flag(f"Name Mismatch — {label} vs Corporate", f"{label} vs TL/MOA",
+                              "Holder Name", name, ref_name,
+                              "Verify name spelling across personal and corporate documents.")
+            if corp_rows:
+                panels.append({
+                    "title": "Personal Name vs Corporate Documents",
+                    "type": "match",
+                    "headers": ["Comparison", "Personal Document", "TL / MOA Name", "Match"],
+                    "rows": corp_rows
+                })
+
+        # 8D — Employer on visa vs company name
+        if visa_up and visa.get("employer"):
+            co  = _v(tl,"company_name","") or _v(moa,"company_name","")
+            emp = _v(visa, "employer")
+            if co and co != "—":
+                m = _match2(emp, co)
+                panels.append({
+                    "title": "Employer (Visa) vs Company Name",
+                    "type": "match",
+                    "headers": ["Field", "Visa — Employer / Sponsor", "Company Name (TL / MOA)", "Match"],
+                    "rows": [_mr("Employer / Company", [emp, co], _msym(m))]
+                })
+                if m == "⚠":
+                    _flag("Employer Mismatch", "Residence Visa vs TL/MOA",
+                          "Employer / Sponsor", emp, co,
+                          "Verify sponsor on visa matches the company on Trade Licence.")
+
+    return {"company_name": company_name, "panels": panels, "flags": flags}

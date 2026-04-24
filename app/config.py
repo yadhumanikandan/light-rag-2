@@ -5,6 +5,7 @@ load_dotenv()
 
 OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+RAG_STORAGE_DIR  = os.getenv("RAG_STORAGE_DIR", "rag_storage")
 
 # NAS / SMB share where KYC documents are archived
 NAS_SERVER   = os.getenv("NAS_SERVER",   "192.168.0.5")

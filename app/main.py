@@ -1,3 +1,4 @@
+import base64
 import logging
 from datetime import date
 from pathlib import Path
@@ -5,11 +6,11 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.kyc_extractor import extract_for_kyc
-from app.kyc_generator import generate_kyc_document
+from app.kyc_generator import build_report_data, generate_kyc_document
 from app.nas_storage import save_to_nas
 from app.passport import check_document, check_passport
 
@@ -124,40 +125,44 @@ async def generate_kyc_endpoint(
         else:
             extracted[doc_type] = result
 
+    today = date.today()
+
     # Generate the DOCX
     try:
-        docx_bytes = generate_kyc_document(extracted, date.today())
+        docx_bytes = generate_kyc_document(extracted, today)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to generate KYC document: {exc}")
+
+    # Build full report data for frontend preview
+    report = build_report_data(extracted, today)
 
     # Build a safe filename from company name
     company = ""
     if extracted.get("trade_license") and not extracted["trade_license"].get("error"):
-        company = extracted["trade_license"].get("company_name") or ""
+        raw = extracted["trade_license"].get("company_name") or ""
+        company = " ".join(raw) if isinstance(raw, list) else str(raw)
     safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in company).strip().replace(" ", "_")
     filename = f"KYC_{safe}.docx" if safe else "KYC_Report.docx"
 
     # ── Archive to NAS (non-fatal: user still gets the download on NAS failure) ──
-    nas_folder_name = company or f"Unknown_Company_{date.today().strftime('%Y%m%d')}"
+    nas_folder_name = company or f"Unknown_Company_{today.strftime('%Y%m%d')}"
     print(f"[NAS] raw_files collected: {list(raw_files.keys())}", flush=True)
     print(f"[NAS] company='{nas_folder_name}'  docx_filename='{filename}'", flush=True)
 
-    response_headers: dict[str, str] = {
-        "Content-Disposition": f'attachment; filename="{filename}"',
-    }
+    nas_display = None
     nas_folder = save_to_nas(docx_bytes, filename, nas_folder_name, raw_files)
     if nas_folder:
         nas_display = nas_folder.rstrip("\\").split("\\")[-1]
-        response_headers["X-NAS-Folder"] = nas_display
         print(f"[NAS] save succeeded → {nas_folder}", flush=True)
     else:
         print(f"[NAS] save FAILED for '{filename}' — see error above", flush=True)
 
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers=response_headers,
-    )
+    return JSONResponse({
+        "filename":   filename,
+        "nas_folder": nas_display,
+        "report":     report,
+        "docx":       base64.b64encode(docx_bytes).decode(),
+    })
 
 
 @app.post("/check-passport")

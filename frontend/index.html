@@ -268,7 +268,7 @@
     /* ── SUCCESS ── */
     #success-section {
       display: none;
-      width: 100%; max-width: 520px;
+      width: 100%; max-width: 1060px;
       animation: fadeUp 0.35s ease;
     }
     @keyframes fadeUp {
@@ -280,7 +280,7 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow-lg);
       border: 1px solid var(--valid-border);
-      padding: 40px 36px;
+      padding: 36px 36px 32px;
       text-align: center;
     }
     .success-icon {
@@ -291,8 +291,83 @@
       margin: 0 auto 20px;
     }
     .success-icon svg { width: 30px; height: 30px; color: var(--valid); }
-    .success-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
-    .success-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 16px; }
+    .success-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .success-company { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .success-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; }
+
+    /* ── REPORT PREVIEW ── */
+    #report-panels { text-align: left; margin-bottom: 24px; }
+    .report-panel  { margin-bottom: 20px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+    .panel-header  {
+      background: var(--navy); color: #fff;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 9px 16px;
+    }
+
+    /* KV table */
+    .kv-table { width: 100%; border-collapse: collapse; }
+    .kv-table tr { border-bottom: 1px solid var(--border); }
+    .kv-table tr:last-child { border-bottom: none; }
+    .kv-table tr:nth-child(odd)  td { background: #fff; }
+    .kv-table tr:nth-child(even) td { background: #F8F9FB; }
+    .kv-table td { padding: 8px 14px; font-size: 12.5px; vertical-align: top; }
+    .kv-label { width: 34%; font-weight: 700; color: var(--navy); white-space: nowrap; }
+    .kv-value { color: var(--text); }
+    .kv-value.sym-ok   { color: #166534; font-weight: 600; }
+    .kv-value.sym-warn { color: #92400E; font-weight: 600; }
+    .kv-value.sym-bad  { color: #991B1B; font-weight: 600; }
+    .kv-section-row td { background: #EEF2F8 !important; }
+    .kv-section-row .kv-label { color: var(--navy-light); font-size: 11px; letter-spacing: 0.04em; }
+
+    /* Match / cross-verification table */
+    .match-table { width: 100%; border-collapse: collapse; }
+    .match-table thead tr { background: #2E4F7A; }
+    .match-table thead th {
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 9px 14px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+    }
+    .match-table tbody tr { border-bottom: 1px solid var(--border); }
+    .match-table tbody tr:last-child { border-bottom: none; }
+    .match-table tbody tr:nth-child(odd)  td { background: #fff; }
+    .match-table tbody tr:nth-child(even) td { background: #F8F9FB; }
+    .match-table td { padding: 8px 14px; font-size: 12.5px; vertical-align: middle; }
+    .match-field { font-weight: 700; color: var(--navy); white-space: nowrap; }
+    .match-val   { color: var(--text); }
+    .match-cell  { text-align: center; white-space: nowrap; }
+
+    /* docstatus table row tinting */
+    .ds-valid    td { background: #F0FDF4 !important; }
+    .ds-expiring td { background: #FFFBEB !important; }
+    .ds-expired  td { background: #FEF2F2 !important; }
+    .ds-none     td { background: #F9FAFB !important; }
+    .ds-doc-name { font-weight: 700; color: var(--navy); }
+
+    /* badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 20px; white-space: nowrap; letter-spacing: 0.02em;
+    }
+    .badge-valid    { background: #DCFCE7; color: #166534; }
+    .badge-expiring { background: #FEF9C3; color: #854D0E; }
+    .badge-expired  { background: #FEE2E2; color: #991B1B; }
+    .badge-none     { background: #F3F4F6; color: #6B7280; }
+    .badge-ok       { background: #DCFCE7; color: #166534; }
+    .badge-warn     { background: #FEE2E2; color: #991B1B; }
+    .badge-dash     { background: #F3F4F6; color: #6B7280; }
+
+    /* flags */
+    .flags-panel { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid #FECACA; margin-bottom: 20px; }
+    .flags-header { background: #B91C1C; color: #fff; font-size: 11px; font-weight: 700;
+                    letter-spacing: 0.06em; text-transform: uppercase; padding: 9px 16px; }
+    .flag-item { border-bottom: 1px solid #FEE2E2; padding: 12px 16px; }
+    .flag-item:last-child { border-bottom: none; }
+    .flag-item:nth-child(odd)  { background: #FFF5F5; }
+    .flag-item:nth-child(even) { background: #fff; }
+    .flag-type   { font-size: 12px; font-weight: 700; color: #991B1B; margin-bottom: 4px; }
+    .flag-detail { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .flag-action { font-size: 12px; font-weight: 600; color: var(--navy); margin-top: 4px; }
 
     .nas-badge {
       display: none;
@@ -643,7 +718,11 @@
         </svg>
       </div>
       <h2 class="success-title">KYC Report Ready</h2>
-      <p class="success-desc" id="success-desc">Your KYC document has been generated successfully. Click below to download.</p>
+      <p class="success-company" id="success-company"></p>
+      <p class="success-desc"   id="success-desc">Generated successfully. Review the extracted data below, then download the full report.</p>
+
+      <!-- Full report preview -->
+      <div id="report-panels"></div>
 
       <div class="nas-badge" id="nas-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -806,37 +885,38 @@
       if (!res.ok) {
         let msg = 'Failed to generate KYC report.';
         try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
-        showError(msg);
-        return;
+        showError(msg); return;
       }
 
-      // Get filename from Content-Disposition
-      const disposition = res.headers.get('Content-Disposition') || '';
-      const fnMatch = disposition.match(/filename="?([^"]+)"?/);
-      const filename = fnMatch ? fnMatch[1] : 'KYC_Report.docx';
+      const data = await res.json();
 
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
+      // Decode base64 docx → blob URL
+      const byteChars = atob(data.docx);
+      const byteArr   = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([byteArr], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      }));
 
-      // Activate final loading step
+      // Final loading step
       document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
       document.getElementById('step-done').classList.add('active');
-
       await new Promise(r => setTimeout(r, 600));
 
       document.getElementById('download-link').href     = url;
-      document.getElementById('download-link').download = filename;
+      document.getElementById('download-link').download = data.filename || 'KYC_Report.docx';
 
-      // Count docs for success message
+      const report = data.report || {};
+      document.getElementById('success-company').textContent = report.company_name || '';
       const count = DOC_TYPES.filter(t => files[t]).length;
       document.getElementById('success-desc').textContent =
-        `KYC profile generated from ${count} document${count !== 1 ? 's' : ''}. Click below to download.`;
+        `${count} document${count !== 1 ? 's' : ''} processed. Review extracted data below, then download the full report.`;
 
-      // Show NAS save confirmation if server archived the file
-      const nasBadge  = document.getElementById('nas-badge');
-      const nasFolder = res.headers.get('X-NAS-Folder');
-      if (nasFolder) {
-        document.getElementById('nas-folder-name').textContent = nasFolder;
+      renderReport(report);
+
+      const nasBadge = document.getElementById('nas-badge');
+      if (data.nas_folder) {
+        document.getElementById('nas-folder-name').textContent = data.nas_folder;
         nasBadge.style.display = 'flex';
       } else {
         nasBadge.style.display = 'none';
@@ -847,6 +927,181 @@
     } catch (err) {
       showError('Connection error. Please check the server is running and try again.');
     }
+  }
+
+  // ── Report rendering ──────────────────────────────────────────────────────
+
+  function renderReport(report) {
+    const container = document.getElementById('report-panels');
+    container.innerHTML = '';
+    if (!report || !report.panels) return;
+
+    // Show flags/problems at the TOP so they're immediately visible
+    if (report.flags && report.flags.length) {
+      container.appendChild(buildFlags(report.flags));
+    }
+
+    report.panels.forEach(panel => {
+      const el = buildPanel(panel);
+      if (el) container.appendChild(el);
+    });
+  }
+
+  function buildPanel(panel) {
+    const wrap = document.createElement('div');
+    wrap.className = 'report-panel';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'panel-header';
+    hdr.textContent = panel.title;
+    wrap.appendChild(hdr);
+
+    let inner;
+    if (panel.type === 'kv')        inner = buildKV(panel.rows);
+    else if (panel.type === 'match') inner = buildMatch(panel.headers, panel.rows);
+    else if (panel.type === 'docstatus') inner = buildDocStatus(panel.rows);
+    if (inner) wrap.appendChild(inner);
+    return wrap;
+  }
+
+  function buildKV(rows) {
+    const tbl = document.createElement('table');
+    tbl.className = 'kv-table';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const isSection = r.value === '';
+      if (isSection) tr.className = 'kv-section-row';
+
+      const ld = document.createElement('td');
+      ld.className = 'kv-label';
+      ld.textContent = r.label;
+      tr.appendChild(ld);
+
+      if (!isSection) {
+        const vd = document.createElement('td');
+        vd.className = 'kv-value';
+        if (r.sym === '✓') vd.classList.add('sym-ok');
+        else if (r.sym === '⚠') vd.classList.add('sym-warn');
+        else if (r.sym === '✗') vd.classList.add('sym-bad');
+        vd.textContent = r.value || '—';
+        tr.appendChild(vd);
+      } else {
+        const vd = document.createElement('td');
+        tr.appendChild(vd);
+      }
+      tbl.appendChild(tr);
+    });
+    return tbl;
+  }
+
+  function buildMatch(headers, rows) {
+    const tbl = document.createElement('table');
+    tbl.className = 'match-table';
+
+    const thead = document.createElement('thead');
+    const htr   = document.createElement('tr');
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+
+      const fd = document.createElement('td');
+      fd.className = 'match-field';
+      fd.textContent = r.field;
+      tr.appendChild(fd);
+
+      (r.values || []).forEach(v => {
+        const td = document.createElement('td');
+        td.className = 'match-val';
+        td.textContent = v || '—';
+        tr.appendChild(td);
+      });
+
+      const mc  = document.createElement('td');
+      mc.className = 'match-cell';
+      const sym  = r.match === 'ok' ? '✓' : r.match === 'warn' ? '✗' : '—';
+      const lbl  = r.match === 'ok' ? 'MATCH' : r.match === 'warn' ? 'MISMATCH' : 'N/A';
+      const bcls = r.match === 'ok' ? 'badge-ok' : r.match === 'warn' ? 'badge-warn' : 'badge-dash';
+      mc.innerHTML = `<span class="badge ${bcls}">${sym} ${lbl}</span>`;
+      tr.appendChild(mc);
+
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    return tbl;
+  }
+
+  function buildDocStatus(rows) {
+    const tbl = document.createElement('table');
+    tbl.className = 'match-table';
+
+    const thead = document.createElement('thead');
+    const htr   = document.createElement('tr');
+    ['Document', 'Name / Company', 'Reference No.', 'Expiry Date', 'Status'].forEach(h => {
+      const th = document.createElement('th'); th.textContent = h; htr.appendChild(th);
+    });
+    thead.appendChild(htr); tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const scMap = { valid: 'ds-valid', expiring_soon: 'ds-expiring', expired: 'ds-expired', no_expiry: 'ds-none' };
+      tr.className = scMap[r.sc] || 'ds-none';
+
+      [[r.doc, 'ds-doc-name'], [r.name, ''], [r.number, ''], [r.expiry, '']].forEach(([txt, cls]) => {
+        const td = document.createElement('td');
+        if (cls) td.className = cls;
+        td.textContent = txt || '—';
+        tr.appendChild(td);
+      });
+
+      const stc = document.createElement('td');
+      stc.style.textAlign = 'center';
+      const sym  = r.sym === '✓' ? '✓' : r.sym === '⚠' ? '⚠' : r.sym === '✗' ? '✗' : '—';
+      const bcls = { valid: 'badge-valid', expiring_soon: 'badge-expiring', expired: 'badge-expired', no_expiry: 'badge-none' };
+      stc.innerHTML = `<span class="badge ${bcls[r.sc] || 'badge-none'}">${sym} ${esc(r.st)}</span>`;
+      tr.appendChild(stc);
+
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    return tbl;
+  }
+
+  function buildFlags(flags) {
+    const wrap = document.createElement('div');
+    wrap.className = 'flags-panel';
+    const hdr = document.createElement('div');
+    hdr.className = 'flags-header';
+    hdr.textContent = `⚠  ${flags.length} Flag${flags.length !== 1 ? 's' : ''} — Action Required`;
+    wrap.appendChild(hdr);
+    flags.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'flag-item';
+      item.innerHTML =
+        `<div class="flag-type">${esc(f.type)}</div>` +
+        `<div class="flag-detail">` +
+          (f.docs  ? `<strong>Documents:</strong> ${esc(f.docs)}<br>` : '') +
+          (f.field ? `<strong>Field:</strong> ${esc(f.field)}<br>` : '') +
+          (f.val_a ? `<strong>Value A:</strong> ${esc(f.val_a)}<br>` : '') +
+          (f.val_b ? `<strong>Value B:</strong> ${esc(f.val_b)}<br>` : '') +
+        `</div>` +
+        (f.action ? `<div class="flag-action">→ ${esc(f.action)}</div>` : '');
+      wrap.appendChild(item);
+    });
+    return wrap;
+  }
+
+  function esc(s) {
+    return String(s || '—')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   let stepTimer = null;
@@ -887,6 +1142,8 @@
     document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
     document.getElementById('nas-badge').style.display = 'none';
     document.getElementById('nas-folder-name').textContent = '';
+    document.getElementById('report-panels').innerHTML = '';
+    document.getElementById('success-company').textContent = '';
     show('upload');
   }
 

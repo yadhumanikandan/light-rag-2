@@ -3,6 +3,10 @@ uvicorn[standard]
 python-multipart
 python-dotenv
 openai
+lightrag-hku
+PyPDF2
+python-pptx
+openpyxl
 pymupdf
 python-docx
 smbprotocol
