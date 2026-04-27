@@ -3,6 +3,7 @@ uvicorn[standard]
 python-multipart
 python-dotenv
 openai
+anthropic
 lightrag-hku
 PyPDF2
 python-pptx

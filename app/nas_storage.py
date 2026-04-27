@@ -40,7 +40,7 @@ def save_to_nas(
     docx_bytes: bytes,
     filename: str,
     company_name: str,
-    original_files: Optional[dict[str, tuple[str, bytes]]] = None,
+    original_files: Optional[dict[str, list[tuple[str, bytes]]]] = None,
 ) -> Optional[str]:
     """
     Create a company folder under BANKS, save every original uploaded document,
@@ -50,12 +50,11 @@ def save_to_nas(
         docx_bytes:     Raw bytes of the generated Word document.
         filename:       Target DOCX file name (e.g. "KYC_Acme_LLC.docx").
         company_name:   Company name from the Trade Licence — becomes the folder name.
-        original_files: Mapping of doc_type → (original_filename, file_bytes) for every
-                        document the user uploaded. Each file is saved as
-                        "{doc_type}{original_extension}" so the folder contains e.g.:
+        original_files: Mapping of doc_type → list of (original_filename, file_bytes).
+                        Multiple files per type are saved with a numeric suffix, e.g.:
+                          emirates_id_1.jpg
+                          emirates_id_2.jpg
                           trade_license.pdf
-                          ejari.jpg
-                          passport.pdf
                           KYC_Acme_LLC.docx
 
     Returns:
@@ -90,14 +89,14 @@ def save_to_nas(
 
         # ── Save every original uploaded document ────────────────────────────
         if original_files:
-            for doc_type, (orig_filename, file_bytes) in original_files.items():
-                ext = ""
-                if "." in orig_filename:
-                    ext = "." + orig_filename.rsplit(".", 1)[-1].lower()
-                nas_name = f"{doc_type}{ext}"
-                with smbclient.open_file(f"{unc_folder}\\{nas_name}", mode="wb") as fh:
-                    fh.write(file_bytes)
-                print(f"[NAS] wrote {nas_name} ({len(file_bytes):,} bytes)", flush=True)
+            for doc_type, file_list in original_files.items():
+                for i, (orig_filename, file_bytes) in enumerate(file_list):
+                    ext = "." + orig_filename.rsplit(".", 1)[-1].lower() if "." in orig_filename else ""
+                    suffix = f"_{i + 1}" if len(file_list) > 1 else ""
+                    nas_name = f"{doc_type}{suffix}{ext}"
+                    with smbclient.open_file(f"{unc_folder}\\{nas_name}", mode="wb") as fh:
+                        fh.write(file_bytes)
+                    print(f"[NAS] wrote {nas_name} ({len(file_bytes):,} bytes)", flush=True)
 
         # ── Save the generated KYC report ────────────────────────────────────
         with smbclient.open_file(f"{unc_folder}\\{filename}", mode="wb") as fh:

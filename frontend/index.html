@@ -448,6 +448,77 @@
       background: var(--card);
     }
 
+    /* ── PARTNER DOCS ── */
+    .partner-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .partner-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .partner-avatar {
+      width: 36px; height: 36px;
+      background: var(--navy);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 14px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .partner-info { flex: 1; }
+    .partner-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .partner-meta { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+    .partner-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .partner-slot {
+      background: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      min-height: 100px;
+    }
+    .partner-slot:hover { border-color: var(--navy); background: #F6F8FB; }
+    .partner-slot.has-file {
+      border-style: solid; border-color: #2E75B6;
+      background: #F0F5FF;
+    }
+    .partner-slot.matched {
+      border-style: solid; border-color: #16A34A;
+      background: #F0FDF4;
+      cursor: default;
+      pointer-events: none;
+    }
+    .partner-slot .slot-label { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .partner-slot .slot-hint  { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+    .partner-slot .slot-file-name {
+      display: none; margin-top: 6px;
+      font-size: 10px; font-weight: 600; color: #2563EB;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%; padding: 3px 7px; background: #DBEAFE; border-radius: 20px;
+    }
+    .partner-slot.has-file .slot-file-name { display: inline-block; }
+    .partner-slot.has-file .slot-hint { display: none; }
+    .partner-slot.matched .slot-hint { display: none; }
+    .partner-slot .matched-label {
+      display: none; margin-top: 6px;
+      font-size: 10px; font-weight: 700; color: #16A34A;
+    }
+    .partner-slot.matched .matched-label { display: block; }
+    .partner-slot input[type="file"] { display: none; }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 1100px) {
       .doc-grid { grid-template-columns: repeat(2, 1fr); max-width: 740px; }
@@ -456,6 +527,7 @@
       header { padding: 0 18px; }
       main   { padding: 24px 16px 40px; }
       .doc-grid { grid-template-columns: 1fr; max-width: 380px; }
+      .partner-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -507,7 +579,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-trade_license" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-trade_license" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- Ejari -->
@@ -527,7 +599,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-ejari" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-ejari" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- MOA -->
@@ -551,7 +623,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-moa" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-moa" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- Insurance -->
@@ -571,7 +643,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-insurance" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-insurance" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- Passport -->
@@ -594,7 +666,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-passport" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-passport" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- Emirates ID -->
@@ -617,7 +689,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-emirates_id" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-emirates_id" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- Residence Visa -->
@@ -639,7 +711,7 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-residence_visa" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-residence_visa" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
       <!-- VAT Certificate -->
@@ -661,7 +733,75 @@
         <div class="slot-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <input type="file" id="file-vat_certificate" accept=".pdf,.jpg,.jpeg,.png,.webp" />
+        <input type="file" id="file-vat_certificate" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Board Resolution -->
+      <div class="doc-slot" id="slot-board_resolution" data-type="board_resolution">
+        <button class="slot-clear" data-type="board_resolution" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/>
+            <polyline points="16 3 16 8 21 8"/>
+            <path d="M12 18v-6"/>
+            <path d="M9 15l3 3 3-3"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Board Resolution</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-board_resolution"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-board_resolution" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Power of Attorney -->
+      <div class="doc-slot" id="slot-poa" data-type="poa">
+        <button class="slot-clear" data-type="poa" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Power of Attorney</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-poa"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-poa" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Partners Annex -->
+      <div class="doc-slot" id="slot-partners_annex" data-type="partners_annex">
+        <button class="slot-clear" data-type="partners_annex" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Partners Annex</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-partners_annex"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-partners_annex" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
     </div><!-- /.doc-grid -->
@@ -676,7 +816,7 @@
       </svg>
       Generate KYC Report
     </button>
-    <p class="btn-note">Upload at least one document. Trade Licence + MOA + personal documents produce the most complete KYC profile.</p>
+    <p class="btn-note">Upload at least one document. Trade Licence + MOA + personal documents + Board Resolution produce the most complete KYC profile.</p>
   </div>
 
   <!-- ── Loading ── -->
@@ -704,6 +844,41 @@
           Ready for download
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Partner Documents ── -->
+  <div id="partner-docs-section" style="display:none;">
+    <div class="success-card" style="border-color: #93C5FD;">
+      <div class="success-icon" style="background:#EFF6FF;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <h2 class="success-title">Partner Documents Required</h2>
+      <p class="success-desc" id="partner-docs-desc">Multiple partners detected. Upload personal documents for each partner listed below.</p>
+
+      <div id="partner-cards"></div>
+
+      <button class="generate-btn" id="partner-submit-btn" disabled style="margin-top:20px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Continue &amp; Generate Report
+      </button>
+      <button class="reset-btn" id="partner-skip-btn" style="margin-top:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="13 17 18 12 13 7"/>
+          <polyline points="6 17 11 12 6 7"/>
+        </svg>
+        Skip &mdash; Generate with available documents
+      </button>
     </div>
   </div>
 
@@ -782,16 +957,26 @@
 <script>
   const ALLOWED_EXT = ['pdf','jpg','jpeg','png','webp'];
   const DOC_TYPES   = ['trade_license', 'ejari', 'moa', 'insurance', 'passport', 'emirates_id',
-                       'residence_visa', 'vat_certificate'];
+                       'residence_visa', 'vat_certificate', 'board_resolution', 'poa',
+                       'partners_annex'];
 
+  // Each key holds an array of File objects (null = nothing uploaded yet)
   const files = { trade_license: null, ejari: null, moa: null, insurance: null, passport: null,
-                  emirates_id: null, residence_visa: null, vat_certificate: null };
+                  emirates_id: null, residence_visa: null, vat_certificate: null,
+                  board_resolution: null, poa: null, partners_annex: null };
 
-  const uploadSection  = document.getElementById('upload-section');
-  const loadingSection = document.getElementById('loading-section');
-  const successSection = document.getElementById('success-section');
-  const errorSection   = document.getElementById('error-section');
-  const generateBtn    = document.getElementById('generate-btn');
+  const uploadSection       = document.getElementById('upload-section');
+  const loadingSection      = document.getElementById('loading-section');
+  const partnerDocsSection  = document.getElementById('partner-docs-section');
+  const successSection      = document.getElementById('success-section');
+  const errorSection        = document.getElementById('error-section');
+  const generateBtn         = document.getElementById('generate-btn');
+
+  // ── Multi-partner state ─────────────────────────────────────────────────────
+  let pendingExtracted = null;   // base64-encoded extracted JSON from phase 1
+  let pendingPartners  = null;   // partner list from needs_partner_docs response
+  let pendingSessionId = null;   // session UUID for NAS archiving
+  const partnerFiles   = {};     // "0_passport" → [File], "1_emirates_id" → [File]
 
   // ── Slot wiring ──────────────────────────────────────────────────────────────
 
@@ -806,9 +991,9 @@
       input.click();
     });
 
-    // File input change
+    // File input change — supports multiple files
     input.addEventListener('change', () => {
-      if (input.files[0]) setFile(type, input.files[0]);
+      if (input.files.length) setFiles(type, Array.from(input.files));
     });
 
     // Clear button
@@ -817,35 +1002,38 @@
       clearFile(type);
     });
 
-    // Drag and drop
+    // Drag and drop — supports multiple dropped files
     slot.addEventListener('dragenter', e => { e.preventDefault(); slot.classList.add('drag-over'); });
     slot.addEventListener('dragover',  e => { e.preventDefault(); slot.classList.add('drag-over'); });
     slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
     slot.addEventListener('drop', e => {
       e.preventDefault();
       slot.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (!ALLOWED_EXT.includes(ext)) {
-          alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
-          return;
-        }
-        setFile(type, file);
+      if (e.dataTransfer.files.length) {
+        setFiles(type, Array.from(e.dataTransfer.files));
       }
     });
   });
 
-  function setFile(type, file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!ALLOWED_EXT.includes(ext)) {
-      alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
-      return;
-    }
-    files[type] = file;
+  function setFiles(type, fileArray) {
+    const valid = fileArray.filter(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      if (!ALLOWED_EXT.includes(ext)) {
+        alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
+        return false;
+      }
+      return true;
+    });
+    if (!valid.length) return;
+    files[type] = valid;
     document.getElementById(`slot-${type}`).classList.add('has-file');
     const fname = document.getElementById(`fname-${type}`);
-    fname.textContent = file.name.length > 28 ? file.name.slice(0, 25) + '...' : file.name;
+    if (valid.length === 1) {
+      const n = valid[0].name;
+      fname.textContent = n.length > 28 ? n.slice(0, 25) + '...' : n;
+    } else {
+      fname.textContent = `${valid.length} files selected`;
+    }
     updateBtn();
   }
 
@@ -858,8 +1046,7 @@
   }
 
   function updateBtn() {
-    // Require at least trade_license OR any one document to enable
-    const anyFile = DOC_TYPES.some(t => files[t] !== null);
+    const anyFile = DOC_TYPES.some(t => files[t] && files[t].length > 0);
     generateBtn.disabled = !anyFile;
   }
 
@@ -868,15 +1055,16 @@
   generateBtn.addEventListener('click', generateKyc);
 
   async function generateKyc() {
-    const anyFile = DOC_TYPES.some(t => files[t] !== null);
+    const anyFile = DOC_TYPES.some(t => files[t] && files[t].length > 0);
     if (!anyFile) return;
 
     show('loading');
     animateSteps();
 
     const formData = new FormData();
+    // Append each file separately under the same field name — server receives List[UploadFile]
     DOC_TYPES.forEach(type => {
-      if (files[type]) formData.append(type, files[type]);
+      if (files[type]) files[type].forEach(f => formData.append(type, f));
     });
 
     try {
@@ -890,44 +1078,212 @@
 
       const data = await res.json();
 
-      // Decode base64 docx → blob URL
-      const byteChars = atob(data.docx);
-      const byteArr   = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const url = URL.createObjectURL(new Blob([byteArr], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      }));
-
-      // Final loading step
-      document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
-      document.getElementById('step-done').classList.add('active');
-      await new Promise(r => setTimeout(r, 600));
-
-      document.getElementById('download-link').href     = url;
-      document.getElementById('download-link').download = data.filename || 'KYC_Report.docx';
-
-      const report = data.report || {};
-      document.getElementById('success-company').textContent = report.company_name || '';
-      const count = DOC_TYPES.filter(t => files[t]).length;
-      document.getElementById('success-desc').textContent =
-        `${count} document${count !== 1 ? 's' : ''} processed. Review extracted data below, then download the full report.`;
-
-      renderReport(report);
-
-      const nasBadge = document.getElementById('nas-badge');
-      if (data.nas_folder) {
-        document.getElementById('nas-folder-name').textContent = data.nas_folder;
-        nasBadge.style.display = 'flex';
-      } else {
-        nasBadge.style.display = 'none';
+      // ── Multi-partner: show partner docs screen ────────────────────────
+      if (data.needs_partner_docs) {
+        clearInterval(stepTimer);
+        pendingExtracted = data.extracted_data;
+        pendingPartners  = data.partners;
+        pendingSessionId = data.session_id;
+        renderPartnerDocsScreen(data.partners);
+        show('partner-docs');
+        return;
       }
 
-      show('success');
+      // ── Normal flow: show success ──────────────────────────────────────
+      showSuccess(data);
 
     } catch (err) {
       showError('Connection error. Please check the server is running and try again.');
     }
   }
+
+  // ── Show success (shared by both flows) ────────────────────────────────────
+
+  function showSuccess(data) {
+    const byteChars = atob(data.docx);
+    const byteArr   = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([byteArr], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    }));
+
+    document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-done').classList.add('active');
+
+    document.getElementById('download-link').href     = url;
+    document.getElementById('download-link').download = data.filename || 'KYC_Report.docx';
+
+    const report = data.report || {};
+    document.getElementById('success-company').textContent = report.company_name || '';
+    document.getElementById('success-desc').textContent = 'Report generated. Review the extracted data below, then download the full report.';
+
+    renderReport(report);
+
+    const nasBadge = document.getElementById('nas-badge');
+    if (data.nas_folder) {
+      document.getElementById('nas-folder-name').textContent = data.nas_folder;
+      nasBadge.style.display = 'flex';
+    } else {
+      nasBadge.style.display = 'none';
+    }
+    show('success');
+  }
+
+  // ── Partner documents screen ────────────────────────────────────────────────
+
+  function renderPartnerDocsScreen(partners) {
+    const container = document.getElementById('partner-cards');
+    container.innerHTML = '';
+    // Clear previous partner files
+    Object.keys(partnerFiles).forEach(k => delete partnerFiles[k]);
+
+    const total = partners.length;
+    const missing = partners.filter(p => !(p.has_passport || p.has_emirates_id)).length;
+    document.getElementById('partner-docs-desc').textContent =
+      `We identified ${total} partner${total !== 1 ? 's' : ''}. ` +
+      `${missing} partner${missing !== 1 ? 's' : ''} need personal documents uploaded.`;
+
+    partners.forEach((partner, idx) => {
+      const card = document.createElement('div');
+      card.className = 'partner-card';
+
+      const initials = (partner.name || 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const meta = [partner.nationality, partner.share_percentage].filter(Boolean).join(' · ');
+
+      card.innerHTML =
+        `<div class="partner-header">
+          <div class="partner-avatar">${esc(initials)}</div>
+          <div class="partner-info">
+            <div class="partner-name">${esc(partner.name || 'Partner ' + (idx + 1))}</div>
+            ${meta ? `<div class="partner-meta">${esc(meta)}</div>` : ''}
+          </div>
+        </div>
+        <div class="partner-grid">
+          ${buildPartnerSlot(idx, 'passport', 'Passport', partner.has_passport)}
+          ${buildPartnerSlot(idx, 'emirates_id', 'Emirates ID', partner.has_emirates_id)}
+          ${buildPartnerSlot(idx, 'residence_visa', 'Residence Visa', partner.has_residence_visa)}
+        </div>`;
+      container.appendChild(card);
+
+      // Wire up click/change handlers for non-matched slots
+      ['passport', 'emirates_id', 'residence_visa'].forEach(dtype => {
+        if (partner['has_' + dtype]) return; // skip matched
+        const slot  = document.getElementById(`pslot-${idx}-${dtype}`);
+        const input = document.getElementById(`pfile-${idx}-${dtype}`);
+        if (!slot || !input) return;
+
+        slot.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => {
+          if (input.files.length) {
+            const valid = Array.from(input.files).filter(f => {
+              const ext = f.name.split('.').pop().toLowerCase();
+              if (!ALLOWED_EXT.includes(ext)) { alert(`Unsupported file type ".${ext}".`); return false; }
+              return true;
+            });
+            if (!valid.length) return;
+            partnerFiles[`${idx}_${dtype}`] = valid;
+            slot.classList.add('has-file');
+            const fn = slot.querySelector('.slot-file-name');
+            fn.textContent = valid.length === 1
+              ? (valid[0].name.length > 22 ? valid[0].name.slice(0, 19) + '...' : valid[0].name)
+              : `${valid.length} files`;
+            updatePartnerBtn();
+          }
+        });
+
+        // Drag and drop
+        slot.addEventListener('dragenter', e => { e.preventDefault(); slot.style.borderColor = 'var(--navy)'; });
+        slot.addEventListener('dragover',  e => { e.preventDefault(); });
+        slot.addEventListener('dragleave', () => { slot.style.borderColor = ''; });
+        slot.addEventListener('drop', e => {
+          e.preventDefault(); slot.style.borderColor = '';
+          if (e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+    });
+
+    updatePartnerBtn();
+  }
+
+  function buildPartnerSlot(idx, dtype, label, matched) {
+    if (matched) {
+      return `<div class="partner-slot matched" id="pslot-${idx}-${dtype}">
+        <div class="slot-label">${label}</div>
+        <div class="matched-label">&#10003; Already matched</div>
+      </div>`;
+    }
+    return `<div class="partner-slot" id="pslot-${idx}-${dtype}">
+      <div class="slot-label">${label}</div>
+      <div class="slot-hint">Click to upload</div>
+      <div class="slot-file-name"></div>
+      <input type="file" id="pfile-${idx}-${dtype}" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+    </div>`;
+  }
+
+  function updatePartnerBtn() {
+    const hasAny = Object.values(partnerFiles).some(v => v && v.length > 0);
+    document.getElementById('partner-submit-btn').disabled = !hasAny;
+  }
+
+  async function submitPartnerDocs() {
+    show('loading');
+    animateSteps();
+
+    const formData = new FormData();
+    formData.append('extracted_json', pendingExtracted);
+    formData.append('session_id', pendingSessionId || '');
+
+    for (const [key, fileArray] of Object.entries(partnerFiles)) {
+      if (fileArray && fileArray.length) {
+        const [pidx, dtype] = key.split('_', 2);
+        const fieldName = `partner_${pidx}_${dtype.includes('_') ? dtype : key.substring(key.indexOf('_') + 1)}`;
+        fileArray.forEach(f => formData.append(`partner_${key}`, f));
+      }
+    }
+
+    try {
+      const res = await fetch('/generate-kyc-complete', { method: 'POST', body: formData });
+      if (!res.ok) {
+        let msg = 'Failed to generate KYC report.';
+        try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+        showError(msg); return;
+      }
+      const data = await res.json();
+      showSuccess(data);
+    } catch (err) {
+      showError('Connection error. Please check the server is running and try again.');
+    }
+  }
+
+  async function skipPartnerDocs() {
+    show('loading');
+    animateSteps();
+
+    const formData = new FormData();
+    formData.append('extracted_json', pendingExtracted);
+    formData.append('session_id', pendingSessionId || '');
+
+    try {
+      const res = await fetch('/generate-kyc-complete', { method: 'POST', body: formData });
+      if (!res.ok) {
+        let msg = 'Failed to generate KYC report.';
+        try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+        showError(msg); return;
+      }
+      const data = await res.json();
+      showSuccess(data);
+    } catch (err) {
+      showError('Connection error. Please check the server is running and try again.');
+    }
+  }
+
+  document.getElementById('partner-submit-btn').addEventListener('click', submitPartnerDocs);
+  document.getElementById('partner-skip-btn').addEventListener('click', skipPartnerDocs);
 
   // ── Report rendering ──────────────────────────────────────────────────────
 
@@ -1130,20 +1486,26 @@
   }
 
   function show(section) {
-    uploadSection.style.display  = section === 'upload'  ? 'block' : 'none';
-    loadingSection.style.display = section === 'loading' ? 'block' : 'none';
-    successSection.style.display = section === 'success' ? 'block' : 'none';
-    errorSection.style.display   = section === 'error'   ? 'block' : 'none';
+    uploadSection.style.display       = section === 'upload'       ? 'block' : 'none';
+    loadingSection.style.display      = section === 'loading'      ? 'block' : 'none';
+    successSection.style.display      = section === 'success'      ? 'block' : 'none';
+    errorSection.style.display        = section === 'error'        ? 'block' : 'none';
+    partnerDocsSection.style.display  = section === 'partner-docs' ? 'block' : 'none';
   }
 
   function reset() {
     clearInterval(stepTimer);
-    DOC_TYPES.forEach(t => clearFile(t));
+    DOC_TYPES.forEach(t => clearFile(t));  // also resets files[t] to null
     document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
     document.getElementById('nas-badge').style.display = 'none';
     document.getElementById('nas-folder-name').textContent = '';
     document.getElementById('report-panels').innerHTML = '';
     document.getElementById('success-company').textContent = '';
+    // Clear multi-partner state
+    pendingExtracted = null;
+    pendingPartners  = null;
+    pendingSessionId = null;
+    Object.keys(partnerFiles).forEach(k => delete partnerFiles[k]);
     show('upload');
   }
 

@@ -3,24 +3,14 @@ import json
 import re
 from datetime import date, datetime
 
+from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
-from app.config import OPENAI_API_KEY, DEEPSEEK_API_KEY
+from app.config import ANTHROPIC_API_KEY, DEEPSEEK_API_KEY
 
-_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+_anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 _deepseek_client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
 
-_MODEL = "gpt-4.1"
-
-
-async def _chat_with_fallback(messages, max_tokens: int, temperature: float, response_format=None):
-    """Try GPT-4.1 first; silently fall back to deepseek-chat on any error."""
-    kwargs = dict(messages=messages, max_tokens=max_tokens, temperature=temperature)
-    if response_format:
-        kwargs["response_format"] = response_format
-    try:
-        return await _openai_client.chat.completions.create(model=_MODEL, **kwargs)
-    except Exception:
-        return await _deepseek_client.chat.completions.create(model="deepseek-chat", **kwargs)
+_MODEL = "claude-sonnet-4-6"
 
 
 # ── Step 1: bilingual OCR — transcribe English + Arabic text ─────────────────
@@ -186,43 +176,65 @@ async def check_document(file_bytes: bytes, filename: str, doc_type: str) -> dic
     label = _DOC_LABEL[doc_type]
 
     # ── Step 1: transcribe the image(s) — bilingual OCR ──────────────────────
-    content_blocks = [
-        {
-            "type": "text",
-            "text": "Transcribe all text visible in this document image. Include ALL Arabic and English text, every number, date, and code.",
-        },
-    ]
+    content_blocks = []
     for b64, media_type in images:
         content_blocks.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:{media_type};base64,{b64}", "detail": "high"},
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": b64},
         })
+    content_blocks.append({
+        "type": "text",
+        "text": "Transcribe all text visible in this document image. Include ALL Arabic and English text, every number, date, and code.",
+    })
 
-    ocr_resp = await _chat_with_fallback(
-        messages=[
-            {"role": "system", "content": _OCR_SYSTEM},
-            {"role": "user", "content": content_blocks},
-        ],
-        max_tokens=4000,
-        temperature=0,
-    )
-    transcription = ocr_resp.choices[0].message.content.strip()
+    try:
+        ocr_resp = await _anthropic_client.messages.create(
+            model=_MODEL,
+            system=_OCR_SYSTEM,
+            messages=[{"role": "user", "content": content_blocks}],
+            max_tokens=4000,
+            temperature=0,
+        )
+        transcription = ocr_resp.content[0].text.strip()
+    except Exception:
+        # Fall back to DeepSeek (text-only, no vision)
+        ocr_fb_blocks = [{"type": "text", "text": "Transcribe all text visible in this document image. Include ALL Arabic and English text, every number, date, and code."}]
+        ocr_fallback = await _deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": _OCR_SYSTEM},
+                {"role": "user", "content": ocr_fb_blocks},
+            ],
+            max_tokens=4000,
+            temperature=0,
+        )
+        transcription = ocr_fallback.choices[0].message.content.strip()
 
     if not transcription:
         return {"error": f"Could not read text from the {label}. Please upload a clearer image."}
 
     # ── Step 2: extract structured fields from the transcription ─────────────
-    extract_resp = await _chat_with_fallback(
-        messages=[
-            {"role": "system", "content": _PROMPTS[doc_type]},
-            {"role": "user", "content": transcription},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=800,
-        temperature=0,
-    )
-
-    raw = extract_resp.choices[0].message.content.strip()
+    try:
+        extract_resp = await _anthropic_client.messages.create(
+            model=_MODEL,
+            system=_PROMPTS[doc_type] + "\n\nRespond with ONLY a valid JSON object, no other text.",
+            messages=[{"role": "user", "content": transcription}],
+            max_tokens=800,
+            temperature=0,
+        )
+        raw = _strip_json_fences(extract_resp.content[0].text)
+    except Exception:
+        extract_fallback = await _deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": _PROMPTS[doc_type]},
+                {"role": "user", "content": transcription},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=800,
+            temperature=0,
+        )
+        raw = extract_fallback.choices[0].message.content.strip()
 
     try:
         data = json.loads(raw)

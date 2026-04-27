@@ -1,5 +1,5 @@
 """
-Two-step GPT-4.1 extraction for KYC document generation.
+Two-step Claude Sonnet extraction for KYC document generation.
 
 Step 1 — OCR: Transcribe all visible text (English + Arabic) from document images.
          Framed as plain transcription to avoid safety filter refusals on identity documents.
@@ -12,13 +12,45 @@ Supports multi-page PDFs — each page is rendered at 300 DPI and sent as a sepa
 
 import base64
 import json
+import re
 
-from openai import AsyncOpenAI
-from app.config import OPENAI_API_KEY
+from anthropic import AsyncAnthropic
+from app.config import ANTHROPIC_API_KEY
 
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
-_MODEL = "gpt-4.1"
+_MODEL = "claude-sonnet-4-6"
+
+
+# Shared attestation block — emitted on every corporate-shareholder doc extraction.
+# Detect each stage by visible stamp / seal / signature, NOT inferred. If a stage is
+# illegible or ambiguous, set its boolean to null (unknown).
+_ATTESTATION_BLOCK = (
+    "ATTESTATION (CRITICAL — detect by visible stamp/seal/signature, do NOT infer):\n"
+    '- "attestation": {\n'
+    '    "language": "english" | "arabic" | "<other>" — primary language of the document body,\n'
+    '    "stage1_translation":  {"present": true|false|null, "translator": "<name>" | null} '
+    "— certified-translation cover page or translator stamp,\n"
+    '    "stage2_home_country": {"notary": true|false|null, "mfa": true|false|null, '
+    '"apostille": true|false|null} — home-country notary seal, foreign-MFA stamp, or Apostille certificate,\n'
+    '    "stage3_uae_embassy":  {"present": true|false|null, "location": "<embassy city>" | null} '
+    "— UAE embassy attestation stamp on the document,\n"
+    '    "stage4_uae_mofa":     {"present": true|false|null} '
+    "— UAE Ministry of Foreign Affairs attestation stamp.\n"
+    "  }\n"
+    "Rule: present=true only if a clear matching stamp/seal/signature is visible. "
+    "Set present=false only if the stage would normally be on this page and is clearly absent. "
+    "If illegible or unclear, set present=null.\n\n"
+)
+
+
+def _strip_json_fences(text: str) -> str:
+    """Remove markdown ```json ... ``` fences sometimes wrapping JSON responses."""
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    return text
 
 # ── Step 1: bilingual OCR prompt ────────────────────────────────────────────
 _OCR_SYSTEM = (
@@ -97,7 +129,12 @@ _EXTRACT_PROMPTS = {
         "OTHER:\n"
         '- "nationality": As printed in English (e.g., "UNITED ARAB EMIRATES").\n'
         '- "gender": "Male" or "Female". From printed text or MRZ position 8 (M=Male, F=Female).\n'
-        '- "issuing_authority": e.g., "Federal Authority for Identity and Citizenship" if shown.\n\n'
+        '- "issuing_authority": e.g., "Federal Authority for Identity and Citizenship" if shown.\n'
+        '- "issuing_place": Issuing place / city if printed (e.g., "Dubai", "Abu Dhabi"), else null.\n'
+        '- "occupation": Occupation / profession if printed on the card '
+        '(some EIDs show "Profession" / "المهنة"), else null.\n'
+        '- "employer": Sponsor / employer name as printed on the card '
+        '(some EIDs show "Sponsor" / "الكفيل"), else null. Do NOT infer from other documents.\n\n'
         "CRITICAL DATE RULES:\n"
         "- UAE documents use DD/MM/YYYY. ALWAYS convert to YYYY-MM-DD.\n"
         "- Example: 31/07/2028 → 2028-07-31.\n\n"
@@ -235,28 +272,58 @@ _EXTRACT_PROMPTS = {
         '- "capital_currency": Currency (e.g., "UAE Dirhams AED").\n'
         '- "capital_deposited": Whether capital has been deposited (e.g., "Yes — deposited with [bank name]").\n'
         '- "statutory_reserve": Reserve requirement details (e.g., "10% of net profits until reserve equals 50% of capital").\n\n'
-        "OWNER/SHAREHOLDER:\n"
-        '- "owner_name": English full name of the sole shareholder or primary partner. If ONLY Arabic, transliterate.\n'
-        '- "owner_name_arabic": Arabic full name, null if absent.\n'
-        '- "owner_nationality": Nationality as printed.\n'
-        '- "owner_person_number": Person No. (رقم الشخص), null if absent.\n'
-        '- "owner_shares": Share details including number, value, and percentage (e.g., "300 Shares AED 300,000 100%").\n'
-        '- "owner_liability": Liability description (e.g., "Limited to the value of shares held").\n'
-        '- "owner_residence": City and country of residence.\n\n'
-        "MANAGER:\n"
-        '- "manager_name": English full name. The manager may be the same person as the owner. If ONLY Arabic, transliterate.\n'
-        '- "manager_name_arabic": Arabic full name, null if absent.\n'
-        '- "manager_nationality": Nationality.\n'
-        '- "manager_residence": City and country.\n'
-        '- "manager_pobox": P.O. Box, null if absent.\n'
-        '- "manager_person_number": Person No., null if absent.\n'
-        '- "manager_role": Role title (e.g., "Manager" / "مدير").\n'
-        '- "manager_appointment_term": Appointment duration (e.g., "For the duration of the company" / "Renewable annually").\n\n'
+        "SHAREHOLDERS / OWNERS (CRITICAL — extract ALL partners listed in the MOA):\n"
+        "An MOA may list ONE or MULTIPLE shareholders/partners. Each Article naming partners "
+        "may include a list/table with one row per partner. Look for sections titled "
+        "'Partners' / 'الشركاء' / 'Shareholders' / 'المساهمين' / 'Capital Distribution' / "
+        "'توزيع رأس المال'. Each partner typically has: name, nationality, person no., shares.\n"
+        '- "shareholders": Array of partner objects. Extract EVERY partner/shareholder listed. '
+        "For each partner, include:\n"
+        '    - "name": English full name. If ONLY Arabic, transliterate.\n'
+        '    - "name_arabic": Arabic full name, null if absent.\n'
+        '    - "nationality": Nationality as printed.\n'
+        '    - "person_number": Person No. (رقم الشخص), null if absent.\n'
+        '    - "shares": Share details including number, value, and percentage '
+        '(e.g., "25 Shares AED 50,000 25%"). If only a percentage is shown, use that.\n'
+        '    - "share_percentage": Just the percentage as a string (e.g., "25%", "100%"), null if absent.\n'
+        '    - "liability": Liability description, null if absent.\n'
+        '    - "residence": City and country of residence, null if absent.\n'
+        '    - "role": Role description (e.g., "Partner", "Shareholder", "Owner"), null if absent.\n'
+        "BACKWARDS-COMPAT FIELDS (set these to the FIRST shareholder for legacy consumers):\n"
+        '- "owner_name": Same as shareholders[0].name.\n'
+        '- "owner_name_arabic": Same as shareholders[0].name_arabic.\n'
+        '- "owner_nationality": Same as shareholders[0].nationality.\n'
+        '- "owner_person_number": Same as shareholders[0].person_number.\n'
+        '- "owner_shares": Same as shareholders[0].shares.\n'
+        '- "owner_liability": Same as shareholders[0].liability.\n'
+        '- "owner_residence": Same as shareholders[0].residence.\n\n'
+        "MANAGERS (CRITICAL — extract ALL managers listed in the MOA):\n"
+        "An MOA may name ONE or MULTIPLE managers. Look for sections titled "
+        "'Manager' / 'المدير' / 'Managers' / 'المدراء' / 'Management' / 'الإدارة'.\n"
+        '- "managers": Array of manager objects. Extract EVERY manager listed. '
+        "For each manager, include:\n"
+        '    - "name": English full name. If ONLY Arabic, transliterate.\n'
+        '    - "name_arabic": Arabic full name, null if absent.\n'
+        '    - "nationality": Nationality, null if absent.\n'
+        '    - "residence": City and country, null if absent.\n'
+        '    - "pobox": P.O. Box, null if absent.\n'
+        '    - "person_number": Person No., null if absent.\n'
+        '    - "role": Role title (e.g., "Manager" / "مدير"), null if absent.\n'
+        '    - "appointment_term": Appointment duration, null if absent.\n'
+        "BACKWARDS-COMPAT FIELDS (set these to the FIRST manager for legacy consumers):\n"
+        '- "manager_name": Same as managers[0].name.\n'
+        '- "manager_name_arabic": Same as managers[0].name_arabic.\n'
+        '- "manager_nationality": Same as managers[0].nationality.\n'
+        '- "manager_residence": Same as managers[0].residence.\n'
+        '- "manager_pobox": Same as managers[0].pobox.\n'
+        '- "manager_person_number": Same as managers[0].person_number.\n'
+        '- "manager_role": Same as managers[0].role.\n'
+        '- "manager_appointment_term": Same as managers[0].appointment_term.\n\n'
         "SIGNING AUTHORITY:\n"
         '- "signing_authority": Full signing authority description. Look for "صلاحية التوقيع" / "Signing Authority".\n'
         '- "authorised_signatory": Name and role of authorised signatory.\n'
         '- "signing_mode": Signing mode (e.g., "INDIVIDUAL sole signatory" / "JOINT — two signatories required").\n\n'
-        "BANKING AUTHORITY:\n"
+        "BANKING AUTHORITY (free-text — keep these for backward compat):\n"
         "For each of the following, extract the full authority text including who is authorised:\n"
         '- "bank_open_close": Authority to open/close bank accounts.\n'
         '- "bank_operate": Authority to operate bank accounts.\n'
@@ -266,6 +333,32 @@ _EXTRACT_PROMPTS = {
         '- "bank_lc": Authority to issue letters of credit / guarantees.\n'
         '- "bank_vat": Authority for VAT/FTA returns and tax registrations.\n'
         '- "bank_delegate": Authority to delegate powers to third parties.\n\n'
+        "STRUCTURED BANKING AUTHORITY (CRITICAL):\n"
+        "Also emit a structured object summarising the banking authority. Detect by looking for "
+        "an article that explicitly grants powers to open / operate bank accounts, sign cheques, "
+        "transfer funds, or delegate via POA.\n"
+        '- "banking_authority": {\n'
+        '    "explicitly_granted": true if the MOA contains an explicit banking-authority clause, '
+        "false if the MOA is silent on banking,\n"
+        '    "article_reference": e.g. "Article 7" if numbered, otherwise null,\n'
+        '    "powers": {\n'
+        '      "open_close_accounts": true|false|null,\n'
+        '      "sign_cheques": true|false|null,\n'
+        '      "transfer_withdraw_funds": true|false|null,\n'
+        '      "delegate_via_poa": true|false|null\n'
+        "    },\n"
+        '    "signing_mode": "individual" (sole signatory) | "joint" (two or more required) | "unknown",\n'
+        '    "named_signatory": full name of the person granted these powers, else null,\n'
+        '    "raw_clause": VERBATIM text of the banking clause if present — do NOT paraphrase. '
+        "Null if the MOA is silent.\n"
+        "  }\n\n"
+        "Rule: if the MOA does not contain a banking clause, set explicitly_granted=false and "
+        "raw_clause=null. Do NOT invent powers.\n\n"
+        "MOA META:\n"
+        '- "moa_type": "original" | "amended" | "unknown" — "amended" if the document mentions '
+        '"amendment", "addendum", "تعديل", or shows it modifies a prior MOA.\n'
+        '- "governing_law": text of the governing-law clause if present, else null '
+        '(e.g. "UAE Federal Law", "Laws of the Emirate of Dubai").\n\n'
         "CRITICAL DATE RULES:\n"
         "- UAE documents use DD/MM/YYYY. ALWAYS convert to YYYY-MM-DD.\n"
         "- If both Hijri (هجري) and Gregorian dates are shown, use the Gregorian date.\n"
@@ -399,6 +492,244 @@ _EXTRACT_PROMPTS = {
         "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
         "Set a field to null ONLY if genuinely absent."
     ),
+    "board_resolution": (
+        "You are an expert document data extractor. The text below was transcribed from a UAE "
+        "Board Resolution, Owner's Resolution, or Shareholders' Resolution.\n"
+        "The document may be in English, Arabic, or both languages.\n\n"
+        "IMPORTANT LAYOUT NOTES:\n"
+        "- Board Resolutions typically begin with the company name and licence number.\n"
+        "- They name the authorised signatory and list specific banking powers granted.\n"
+        "- They may name specific bank(s) or state 'all UAE banks'.\n"
+        "- They are usually signed by the owner/all directors and may carry a company stamp.\n"
+        "- They may be notarised by a UAE Notary Public.\n"
+        "- Look for 'قرار مجلس الإدارة' (Board Resolution) or 'قرار المالك' (Owner's Resolution).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Company name in English. If ONLY Arabic, transliterate.\n'
+        '- "company_name_arabic": Company name in Arabic, null if absent.\n'
+        '- "licence_number": Trade licence number referenced in the resolution, null if absent.\n\n'
+        "RESOLUTION DETAILS:\n"
+        '- "resolution_date": Date of resolution in YYYY-MM-DD.\n'
+        '- "resolution_type": Type (e.g., "Board Resolution", "Owner\'s Resolution", "Shareholders\' Resolution").\n'
+        '- "effective_date": Effective date if different from resolution date, null if absent.\n'
+        '- "validity_period": Validity period (e.g., "Until further notice", "1 year", "2 years"), null if absent.\n'
+        '- "expiry_date": Expiry date in YYYY-MM-DD if stated, null if absent.\n\n'
+        "SIGNATORY:\n"
+        '- "signatory_name": Full name of the authorised signatory in English. If ONLY Arabic, transliterate.\n'
+        '- "signatory_name_arabic": Signatory name in Arabic, null if absent.\n'
+        '- "signatory_designation": Designation/role (e.g., "Manager", "Director", "Owner"), null if absent.\n'
+        '- "signing_mode": Signing mode (e.g., "Individual", "Joint — two signatories required"), null if absent.\n\n'
+        "BANKING POWERS:\n"
+        '- "bank_open_close": Whether authority to open/close bank accounts is granted (true/false/null).\n'
+        '- "bank_operate": Whether authority to operate bank accounts is granted (true/false/null).\n'
+        '- "bank_cheques": Whether authority to sign cheques is granted (true/false/null).\n'
+        '- "bank_transfer": Whether authority to transfer/withdraw funds is granted (true/false/null).\n'
+        '- "bank_sign_documents": Whether authority to sign all banking documents is granted (true/false/null).\n'
+        '- "named_banks": Specific bank(s) named (e.g., "Emirates NBD", "all UAE banks"), null if absent.\n\n'
+        "STRUCTURED POWERS (CRITICAL — same shape as MOA banking_authority.powers):\n"
+        '- "powers_granted": {\n'
+        '    "open_close_accounts": true|false|null,\n'
+        '    "sign_cheques": true|false|null,\n'
+        '    "transfer_withdraw_funds": true|false|null,\n'
+        '    "delegate_via_poa": true|false|null\n'
+        "  }\n"
+        '- "validity_until": Validity end date in YYYY-MM-DD if explicitly stated, else null.\n'
+        '- "banks_named": Array of bank names. Use ["all UAE banks"] if the resolution applies to all UAE banks. '
+        "Empty array [] if none named.\n\n"
+        "EXECUTION:\n"
+        '- "signed_by": Name(s) of person(s) who signed the resolution, null if absent.\n'
+        '- "notarised": Whether the resolution is notarised (true/false/null).\n'
+        '- "notary_name": Name of the notary, null if absent.\n'
+        '- "company_stamp": Whether a company stamp is present (true/false/null).\n\n'
+        "CRITICAL DATE RULES:\n"
+        "- UAE documents use DD/MM/YYYY. ALWAYS convert to YYYY-MM-DD.\n"
+        "- If both Hijri and Gregorian dates are shown, use the Gregorian date.\n\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "poa": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Power of Attorney (POA) / توكيل رسمي document.\n"
+        "The document may be in English, Arabic, or both languages.\n\n"
+        "IMPORTANT LAYOUT NOTES:\n"
+        "- POAs name a Grantor (الموكل) and a Grantee/Attorney (الوكيل).\n"
+        "- They list specific powers granted to the grantee.\n"
+        "- They may reference specific banks or state 'all UAE banks'.\n"
+        "- They typically state a validity period.\n"
+        "- They may be notarised by a UAE Notary Public or attested if signed abroad.\n"
+        "- Look for 'توكيل' (Power of Attorney) or 'تفويض' (Authorisation).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "GRANTOR (الموكل):\n"
+        '- "grantor_name": Full name of the grantor in English. If ONLY Arabic, transliterate.\n'
+        '- "grantor_name_arabic": Grantor name in Arabic, null if absent.\n'
+        '- "grantor_designation": Grantor role (e.g., "Owner", "Manager"), null if absent.\n'
+        '- "grantor_id_number": Grantor Emirates ID number, null if absent.\n'
+        '- "grantor_passport_number": Grantor passport number, null if absent.\n\n'
+        "GRANTEE / ATTORNEY (الوكيل):\n"
+        '- "grantee_name": Full name of the grantee in English. If ONLY Arabic, transliterate.\n'
+        '- "grantee_name_arabic": Grantee name in Arabic, null if absent.\n'
+        '- "grantee_designation": Grantee role, null if absent.\n'
+        '- "grantee_id_number": Grantee Emirates ID number, null if absent.\n'
+        '- "grantee_passport_number": Grantee passport number, null if absent.\n'
+        '- "grantee_nationality": Grantee nationality, null if absent.\n\n'
+        "COMPANY:\n"
+        '- "company_name": Company name referenced in the POA, null if absent.\n'
+        '- "licence_number": Trade licence number, null if absent.\n\n'
+        "SCOPE:\n"
+        '- "scope_description": Full description of powers granted.\n'
+        '- "bank_open_close": Whether authority to open/close bank accounts is granted (true/false/null).\n'
+        '- "bank_operate": Whether authority to operate bank accounts is granted (true/false/null).\n'
+        '- "bank_cheques": Whether authority to sign cheques is granted (true/false/null).\n'
+        '- "bank_transfer": Whether authority to transfer/withdraw funds is granted (true/false/null).\n'
+        '- "named_banks": Specific bank(s) named, null if absent.\n\n'
+        "DATES:\n"
+        '- "poa_date": Date of POA execution in YYYY-MM-DD.\n'
+        '- "validity_period": Validity period (e.g., "1 year", "2 years"), null if absent.\n'
+        '- "expiry_date": Expiry date in YYYY-MM-DD if stated, null if absent.\n\n'
+        "EXECUTION:\n"
+        '- "notarised": Whether the POA is notarised (true/false/null).\n'
+        '- "notary_name": Name of the notary, null if absent.\n'
+        '- "signed_abroad": Whether it was signed outside UAE (true/false/null).\n'
+        '- "attestation_status": Any attestation stamps noted (e.g., "UAE Embassy attested", "MOFA stamped"), null if absent.\n'
+        '- "language": Document language (e.g., "Arabic", "English", "Bilingual Arabic/English").\n'
+        '- "governing_law": Governing law stated (e.g., "UAE Federal Law"), null if absent.\n\n'
+        "STRUCTURED FIELDS (CRITICAL — used by compliance layer):\n"
+        '- "grantor": Full name of the grantor (alias of grantor_name, mandatory if grantor_name is set).\n'
+        '- "grantee": Full name of the grantee/attorney (alias of grantee_name, mandatory if grantee_name is set).\n'
+        '- "scope": Array of short scope tags. Use only these values: "open_accounts", "close_accounts", '
+        '"operate_accounts", "sign_cheques", "fund_transfer", "issue_lc", "vat_filing", "delegate". '
+        "Include ONLY the tags actually granted. Empty array [] if none can be determined.\n"
+        '- "company_named": Company name the POA relates to, null if absent.\n'
+        '- "licence_number": Trade licence number referenced, null if absent.\n'
+        '- "banks_named": Array of bank names. Use ["all UAE banks"] if applicable, [] if none named.\n'
+        '- "validity_until": Validity end date in YYYY-MM-DD if explicitly stated, else null '
+        "(prefer this over expiry_date for the structured contract).\n"
+        '- "signed_in_country": Country where the POA was executed (e.g., "United Arab Emirates", '
+        '"India", "United Kingdom"), null if not stated.\n'
+        '- "notarisation": {\n'
+        '    "notary_public": true if a notary public stamp/signature is present, false otherwise,\n'
+        '    "uae_embassy": true if a UAE-embassy attestation stamp is present (typically only for POAs signed abroad), false otherwise,\n'
+        '    "mofa": true if a UAE MOFA / Ministry of Foreign Affairs attestation stamp is present, false otherwise\n'
+        "  }\n\n"
+        "CRITICAL DATE RULES:\n"
+        "- UAE documents use DD/MM/YYYY. ALWAYS convert to YYYY-MM-DD.\n"
+        "- If both Hijri and Gregorian dates are shown, use the Gregorian date.\n\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "partners_annex": (
+        "You are an expert document data extractor. The text below was transcribed from a UAE "
+        "Partners Annex, Schedule of Partners, or Shareholder Register attached to a Trade Licence or MOA.\n"
+        "The document is typically bilingual (Arabic + English).\n\n"
+        "IMPORTANT LAYOUT NOTES:\n"
+        "- The Partners Annex lists all shareholders/partners of the company.\n"
+        "- Each partner entry typically shows: name, nationality, person number, shareholding %.\n"
+        "- Partners may be NATURAL PERSONS (individuals) or CORPORATE ENTITIES (companies).\n"
+        "- Corporate entities are identified by legal suffixes like LLC, Ltd, PJSC, Sarl, GmbH, DMCC, etc.\n"
+        "- Look for 'ملحق الشركاء' (Partners Annex) or 'جدول المساهمين' (Shareholder Schedule).\n"
+        "- The company name and licence number usually appear at the top.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Company name in English. If ONLY Arabic, transliterate.\n'
+        '- "company_name_arabic": Company name in Arabic, null if absent.\n'
+        '- "licence_number": Trade licence number, null if absent.\n\n'
+        "PARTNERS:\n"
+        '- "partners": An array of partner objects. For EACH partner/shareholder listed, extract:\n'
+        '  - "name": Full name in English. If ONLY Arabic, transliterate.\n'
+        '  - "name_arabic": Name in Arabic, null if absent.\n'
+        '  - "nationality": Nationality as printed.\n'
+        '  - "person_number": Person No. (رقم الشخص), null if absent. '
+        "An Emirates-ID-shaped person number identifies a natural person.\n"
+        '  - "share_percentage": Shareholding percentage (e.g., "51%", "49%", "100%").\n'
+        '  - "share_value": Share value in AED if stated, null if absent.\n'
+        '  - "role": Role (e.g., "Partner", "Owner", "Shareholder"), null if absent.\n'
+        '  - "is_corporate": true if the entry uses LLC / L.L.C / Ltd / Limited / PJSC / DMCC / '
+        "Sarl / GmbH / Inc / Corp / Co. / Company / Establishment terminology in the name OR "
+        "lacks a personal Emirates-ID-shaped person number; otherwise false.\n"
+        '  - "jurisdiction": For corporate partners, the country / free-zone of incorporation '
+        "(e.g., \"DMCC\", \"BVI\", \"Cayman Islands\"). Null if absent or natural person.\n"
+        '  - "registration_number": Corporate registration / incorporation number if listed, '
+        "null otherwise (only meaningful for corporate partners).\n\n"
+        "CRITICAL RULES:\n"
+        "- Extract ALL partners listed, not just the first one.\n"
+        "- Carefully identify whether each partner is a natural person or a corporate entity.\n"
+        "- Corporate entities will have legal suffixes (LLC, Ltd, PJSC, Sarl, GmbH, DMCC, Inc, etc.).\n"
+        "- If shareholding percentages are shown, extract them exactly as printed.\n\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "certificate_of_incorporation": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Certificate of Incorporation issued by a corporate registry (UAE or foreign).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Registered company name as printed.\n'
+        '- "registration_number": Company / incorporation registration number.\n'
+        '- "jurisdiction": Country and / or free-zone of incorporation '
+        '(e.g., "British Virgin Islands", "DMCC", "Cayman Islands").\n'
+        '- "date_of_incorporation": Date of incorporation in YYYY-MM-DD.\n'
+        '- "issuing_authority": Issuing registrar / authority name.\n\n'
+        + _ATTESTATION_BLOCK +
+        "CRITICAL DATE RULES:\n"
+        "- Convert any DD/MM/YYYY date to YYYY-MM-DD.\n"
+        "- If both Hijri and Gregorian dates are shown, use Gregorian.\n\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "register_of_shareholders": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Register of Shareholders / Members issued by a corporate registry.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Company whose register this is.\n'
+        '- "registration_number": Company registration number, null if absent.\n'
+        '- "jurisdiction": Country / free-zone of incorporation, null if absent.\n'
+        '- "date_of_issue": Date the register was issued / certified, in YYYY-MM-DD, null if absent.\n\n'
+        "SHAREHOLDERS:\n"
+        '- "shareholders": Array of shareholder objects. For EACH shareholder listed:\n'
+        '  - "name": Full name as printed.\n'
+        '  - "nationality": Nationality / country of origin if printed, null otherwise.\n'
+        '  - "share_pct": Shareholding percentage (e.g., "100%", "51%"), null if absent.\n'
+        '  - "person_or_entity_id": Passport number, ID number, or corporate registration number — '
+        "whichever identifies this shareholder, null if absent.\n\n"
+        + _ATTESTATION_BLOCK +
+        "CRITICAL: Extract ALL shareholders listed, not just the first one.\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "register_of_directors": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Register of Directors / Officers issued by a corporate registry.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Company whose register this is.\n'
+        '- "registration_number": Company registration number, null if absent.\n'
+        '- "jurisdiction": Country / free-zone of incorporation, null if absent.\n'
+        '- "date_of_issue": Date the register was issued / certified, in YYYY-MM-DD, null if absent.\n\n'
+        "DIRECTORS:\n"
+        '- "directors": Array of director objects. For EACH director listed:\n'
+        '  - "name": Full name as printed.\n'
+        '  - "nationality": Nationality if printed, null otherwise.\n'
+        '  - "appointment_date": Appointment date in YYYY-MM-DD, null if absent.\n\n'
+        + _ATTESTATION_BLOCK +
+        "CRITICAL: Extract ALL directors listed.\n"
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
+    "certificate_of_good_standing": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Certificate of Good Standing / Incumbency certificate issued by a corporate registry.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Company name as printed.\n'
+        '- "status": Company status as stated (e.g., "Good Standing", "Active", "In Good Standing").\n'
+        '- "date_of_issue": Date the certificate was issued in YYYY-MM-DD.\n'
+        '- "issuing_authority": Issuing registrar / authority name.\n'
+        '- "registration_number": Company registration number, null if absent.\n\n'
+        + _ATTESTATION_BLOCK +
+        "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
+        "Set a field to null ONLY if genuinely absent."
+    ),
 }
 
 
@@ -429,44 +760,45 @@ def _bytes_to_base64_images(file_bytes: bytes, filename: str) -> list[tuple[str,
     return [(base64.b64encode(file_bytes).decode(), media_type)]
 
 
-async def extract_for_kyc(file_bytes: bytes, filename: str, doc_type: str) -> dict:
+async def extract_for_kyc(files: list[tuple[bytes, str]], doc_type: str) -> dict:
     """
     Two-step extraction:
       1. OCR — transcribe all visible text (English + Arabic) from document images.
       2. Parse — extract structured JSON fields from the transcription.
-    Supports multi-page PDFs (up to 10 pages at 300 DPI).
+    Supports multi-page PDFs (up to 10 pages at 300 DPI) and multiple uploaded files
+    (e.g. Emirates ID front + back as two separate images).
+
+    Args:
+        files:    list of (file_bytes, filename) tuples — one per uploaded file for this doc type.
+        doc_type: document type key (e.g. "emirates_id").
     """
     if doc_type not in _EXTRACT_PROMPTS:
         return {"error": f"Unknown document type '{doc_type}'."}
 
-    images = _bytes_to_base64_images(file_bytes, filename)
+    images = []
+    for file_bytes, filename in files:
+        images.extend(_bytes_to_base64_images(file_bytes, filename))
 
     # ── Step 1: transcribe all pages (bilingual OCR) ─────────────────────────
-    content_blocks = [
-        {
-            "type": "text",
-            "text": "Transcribe all text visible in this document. Include ALL Arabic and English text, every number, date, and code.",
-        },
-    ]
+    content_blocks = []
     for b64, media_type in images:
         content_blocks.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:{media_type};base64,{b64}",
-                "detail": "high",
-            },
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": b64},
         })
+    content_blocks.append({
+        "type": "text",
+        "text": "Transcribe all text visible in this document. Include ALL Arabic and English text, every number, date, and code.",
+    })
 
-    ocr_resp = await client.chat.completions.create(
+    ocr_resp = await client.messages.create(
         model=_MODEL,
-        messages=[
-            {"role": "system", "content": _OCR_SYSTEM},
-            {"role": "user", "content": content_blocks},
-        ],
+        system=_OCR_SYSTEM,
+        messages=[{"role": "user", "content": content_blocks}],
         max_tokens=4000,
         temperature=0,
     )
-    transcription = ocr_resp.choices[0].message.content.strip()
+    transcription = ocr_resp.content[0].text.strip()
     print(f"[OCR transcription for {doc_type}]:\n{transcription[:800]}", flush=True)
 
     if not transcription:
@@ -483,18 +815,16 @@ async def extract_for_kyc(file_bytes: bytes, filename: str, doc_type: str) -> di
         return {"error": f"Could not read text from the {doc_type.replace('_', ' ')} image. Please upload a clearer scan."}
 
     # ── Step 2: extract structured fields from the transcription ─────────────
-    extract_resp = await client.chat.completions.create(
+    extract_resp = await client.messages.create(
         model=_MODEL,
-        messages=[
-            {"role": "system", "content": _EXTRACT_PROMPTS[doc_type]},
-            {"role": "user", "content": transcription},
-        ],
-        response_format={"type": "json_object"},
+        system=_EXTRACT_PROMPTS[doc_type] + "\n\nRespond with ONLY a valid JSON object, no other text.",
+        messages=[{"role": "user", "content": transcription}],
         max_tokens=2500,
         temperature=0,
     )
 
-    raw = extract_resp.choices[0].message.content.strip()
+    raw = _strip_json_fences(extract_resp.content[0].text)
+    print(f"[EXTRACT raw for {doc_type}]:\n{raw[:500]}", flush=True)
 
     try:
         return json.loads(raw)
