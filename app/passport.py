@@ -5,12 +5,14 @@ from datetime import date, datetime
 
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
-from app.config import ANTHROPIC_API_KEY, DEEPSEEK_API_KEY
+from app.config import ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY
 
 _anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 _deepseek_client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 _MODEL = "claude-sonnet-4-6"
+_OCR_MODEL = "gpt-5"
 
 
 # ── Step 1: bilingual OCR — transcribe English + Arabic text ─────────────────
@@ -175,12 +177,12 @@ async def check_document(file_bytes: bytes, filename: str, doc_type: str) -> dic
     images = _bytes_to_base64_images(file_bytes, filename)
     label = _DOC_LABEL[doc_type]
 
-    # ── Step 1: transcribe the image(s) — bilingual OCR ──────────────────────
+    # ── Step 1: transcribe the image(s) — bilingual OCR via GPT-5 vision ─────
     content_blocks = []
     for b64, media_type in images:
         content_blocks.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": media_type, "data": b64},
+            "type": "image_url",
+            "image_url": {"url": f"data:{media_type};base64,{b64}", "detail": "high"},
         })
     content_blocks.append({
         "type": "text",
@@ -188,27 +190,35 @@ async def check_document(file_bytes: bytes, filename: str, doc_type: str) -> dic
     })
 
     try:
-        ocr_resp = await _anthropic_client.messages.create(
-            model=_MODEL,
-            system=_OCR_SYSTEM,
-            messages=[{"role": "user", "content": content_blocks}],
-            max_tokens=4000,
-            temperature=0,
-        )
-        transcription = ocr_resp.content[0].text.strip()
-    except Exception:
-        # Fall back to DeepSeek (text-only, no vision)
-        ocr_fb_blocks = [{"type": "text", "text": "Transcribe all text visible in this document image. Include ALL Arabic and English text, every number, date, and code."}]
-        ocr_fallback = await _deepseek_client.chat.completions.create(
-            model="deepseek-chat",
+        ocr_resp = await _openai_client.chat.completions.create(
+            model=_OCR_MODEL,
             messages=[
                 {"role": "system", "content": _OCR_SYSTEM},
-                {"role": "user", "content": ocr_fb_blocks},
+                {"role": "user", "content": content_blocks},
             ],
+            reasoning_effort="minimal",
+        )
+        transcription = (ocr_resp.choices[0].message.content or "").strip()
+    except Exception:
+        # Fall back to Claude Sonnet vision
+        anthropic_blocks = []
+        for b64, media_type in images:
+            anthropic_blocks.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": media_type, "data": b64},
+            })
+        anthropic_blocks.append({
+            "type": "text",
+            "text": "Transcribe all text visible in this document image. Include ALL Arabic and English text, every number, date, and code.",
+        })
+        ocr_fallback = await _anthropic_client.messages.create(
+            model=_MODEL,
+            system=_OCR_SYSTEM,
+            messages=[{"role": "user", "content": anthropic_blocks}],
             max_tokens=4000,
             temperature=0,
         )
-        transcription = ocr_fallback.choices[0].message.content.strip()
+        transcription = ocr_fallback.content[0].text.strip()
 
     if not transcription:
         return {"error": f"Could not read text from the {label}. Please upload a clearer image."}

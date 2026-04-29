@@ -16,8 +16,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
 from app.kyc_compliance import analyse as analyse_compliance
-from app.kyc_extractor import extract_for_kyc
+from app.kyc_extractor import classify_document, extract_for_kyc
 from app.kyc_generator import build_report_data, generate_kyc_document, identify_partners
+from app.name_reconciler import reconcile_names
 from app.nas_storage import save_to_nas
 from app.passport import check_document, check_passport
 
@@ -76,7 +77,10 @@ VALID_DOC_TYPES = {"passport", "emirates_id", "trade_license", "ejari", "moa", "
                    "partners_annex",
                    # Corporate-shareholder KYC pack (Phase 2)
                    "certificate_of_incorporation", "register_of_shareholders",
-                   "register_of_directors", "certificate_of_good_standing"}
+                   "register_of_directors", "certificate_of_good_standing",
+                   # Phase 3 — additional NAAS v4.0 document types
+                   "free_zone_license", "dcci_membership", "renewal_receipt",
+                   "audited_financials", "ubo_declaration", "specimen_signatures"}
 
 
 @app.get("/")
@@ -113,6 +117,36 @@ async def check_document_endpoint(
     return result
 
 
+@app.post("/classify-documents")
+async def classify_documents_endpoint(files: List[UploadFile] = File(...)):
+    """Auto-classify each uploaded file into one of the supported KYC doc types.
+    Used by the bulk-upload UI so the system can ask 'what's missing' at a glance."""
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+
+    payloads: list[tuple[bytes, str]] = []
+    for f in files:
+        ext = Path(f.filename).suffix.lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{ext}'. Please upload PDF, JPG, PNG, or WEBP.",
+            )
+        payloads.append((await f.read(), f.filename))
+
+    tasks = [classify_document(b, n) for b, n in payloads]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    out = []
+    for (_, fname), res in zip(payloads, results):
+        if isinstance(res, Exception):
+            out.append({"filename": fname, "doc_type": "unknown",
+                        "confidence": "low", "reason": str(res)})
+        else:
+            out.append({"filename": fname, **res})
+    return {"results": out}
+
+
 @app.post("/generate-kyc")
 async def generate_kyc_endpoint(
     trade_license:      Optional[List[UploadFile]] = File(default=None),
@@ -130,6 +164,12 @@ async def generate_kyc_endpoint(
     register_of_shareholders:     Optional[List[UploadFile]] = File(default=None),
     register_of_directors:        Optional[List[UploadFile]] = File(default=None),
     certificate_of_good_standing: Optional[List[UploadFile]] = File(default=None),
+    free_zone_license:            Optional[List[UploadFile]] = File(default=None),
+    dcci_membership:              Optional[List[UploadFile]] = File(default=None),
+    renewal_receipt:              Optional[List[UploadFile]] = File(default=None),
+    audited_financials:           Optional[List[UploadFile]] = File(default=None),
+    ubo_declaration:              Optional[List[UploadFile]] = File(default=None),
+    specimen_signatures:          Optional[List[UploadFile]] = File(default=None),
 ):
     """
     Accept up to 15 document types and return a styled KYC Word document.
@@ -152,6 +192,12 @@ async def generate_kyc_endpoint(
         "register_of_shareholders":     register_of_shareholders,
         "register_of_directors":        register_of_directors,
         "certificate_of_good_standing": certificate_of_good_standing,
+        "free_zone_license":            free_zone_license,
+        "dcci_membership":              dcci_membership,
+        "renewal_receipt":              renewal_receipt,
+        "audited_financials":           audited_financials,
+        "ubo_declaration":              ubo_declaration,
+        "specimen_signatures":          specimen_signatures,
     }
 
     # Validate that at least one document was uploaded
@@ -191,11 +237,86 @@ async def generate_kyc_endpoint(
         else:
             extracted[doc_type] = result
 
+    # If user uploaded multiple personal docs in one go (one per partner),
+    # GPT-5 returns a JSON array. Stash the list, promote first item as the
+    # legacy "primary" dict so downstream code keeps working.
+    multi_items: dict[str, list[dict]] = {}
+    for dt in ("passport", "emirates_id", "residence_visa"):
+        v = extracted.get(dt)
+        if isinstance(v, list):
+            items = [x for x in v if isinstance(x, dict) and not x.get("error")]
+            if items:
+                multi_items[dt] = items
+                extracted[dt] = items[0]
+            else:
+                extracted[dt] = {}
+
+    # Defensive: any other doc type that comes back as a list (e.g. multiple Ejari /
+    # tenancy contracts, multiple insurance policies) — compliance + generator expect
+    # a single dict per type. Promote first item to primary, stash full list under
+    # `<dt>_all` for any future renderer that wants the complete set.
+    for dt, v in list(extracted.items()):
+        if dt in ("passport", "emirates_id", "residence_visa", "partner_personal_docs"):
+            continue
+        if isinstance(v, list):
+            items = [x for x in v if isinstance(x, dict) and not x.get("error")]
+            if items:
+                extracted[f"{dt}_all"] = items
+                extracted[dt] = items[0]
+            else:
+                extracted[dt] = {}
+
+    # Pre-build partner_personal_docs from multi_items so the reconciler indexes
+    # EVERY uploaded passport/EID/visa, not just the first of each kind.
+    # Group items by holder_name — one entry per unique person.
+    if multi_items:
+        by_name: dict[str, dict] = {}
+        for dt, items in multi_items.items():
+            for item in items:
+                hname = (item.get("holder_name") or "").strip()
+                if not hname:
+                    continue
+                key = hname.upper()
+                entry = by_name.setdefault(key, {"partner_name": hname})
+                entry[dt] = item
+        if by_name:
+            extracted["partner_personal_docs"] = list(by_name.values())
+
+    reconcile_names(extracted)
+
     today = date.today()
 
     # ── Multi-partner detection ────────────────────────────────────────────────
     partners = identify_partners(extracted)
     non_corporate = [p for p in partners if p.get("name")]
+
+    # Re-key partner_personal_docs by canonical partner names from MOA. After
+    # reconciliation both partner["name"] and item.holder_name should agree,
+    # so _names_match succeeds and has_* flags become true → no phase 2.
+    if multi_items and non_corporate:
+        from app.kyc_generator import _names_match, _s
+        new_ppd: list[dict] = []
+        for partner in non_corporate:
+            entry = {
+                "partner_name": partner["name"],
+                "partner_nationality": partner.get("nationality", ""),
+                "share_percentage": partner.get("share_percentage", ""),
+                "passport": None,
+                "emirates_id": None,
+                "residence_visa": None,
+            }
+            for dt, items in multi_items.items():
+                for item in items:
+                    holder = _s(item.get("holder_name", ""))
+                    if holder and _names_match(partner["name"], holder):
+                        entry[dt] = item
+                        break
+            new_ppd.append(entry)
+            partner["has_passport"]       = bool(entry["passport"])
+            partner["has_emirates_id"]    = bool(entry["emirates_id"])
+            partner["has_residence_visa"] = bool(entry["residence_visa"])
+        extracted["partner_personal_docs"] = new_ppd
+
     missing_docs = [p for p in non_corporate
                     if not (p["has_passport"] or p["has_emirates_id"])]
 
@@ -224,6 +345,8 @@ async def generate_kyc_endpoint(
 
 async def _generate_and_respond(extracted: dict, raw_files: dict, today: date) -> JSONResponse:
     """Shared logic: generate DOCX, build preview, archive to NAS, return response."""
+    reconcile_names(extracted)
+
     try:
         analysis = analyse_compliance(extracted, today)
     except Exception as exc:

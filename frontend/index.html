@@ -91,6 +91,180 @@
       max-width: 540px;
     }
 
+    /* ── MODE TOGGLE (Upload by type / Upload all together) ── */
+    .mode-toggle {
+      display: flex;
+      width: fit-content;
+      background: #E8ECF2;
+      border-radius: 999px;
+      padding: 4px;
+      margin: 0 auto 24px;
+      gap: 4px;
+    }
+    .mode-btn {
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+      letter-spacing: 0.01em;
+    }
+    .mode-btn.active {
+      background: #fff;
+      color: var(--navy);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* ── BULK DROP ZONE ── */
+    .bulk-drop {
+      width: 100%;
+      max-width: 1120px;
+      background: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 56px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 24px;
+    }
+    .bulk-drop:hover { border-color: var(--navy); background: #F6F8FB; }
+    .bulk-drop.drag-over { border-color: var(--navy); border-style: solid; background: #EEF3FA; }
+    .bulk-drop-icon {
+      width: 56px; height: 56px;
+      background: #EEF2F8;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .bulk-drop-icon svg { width: 28px; height: 28px; color: var(--navy); }
+    .bulk-drop-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .bulk-drop-sub   { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+    .bulk-classifying {
+      width: 100%; max-width: 520px;
+      text-align: center;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 36px 28px;
+      margin-bottom: 24px;
+    }
+    .bulk-classifying p { font-size: 13px; color: var(--text-muted); margin-top: 14px; }
+
+    .bulk-results {
+      width: 100%; max-width: 1120px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px 28px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+    .bulk-results-title {
+      font-size: 13px; font-weight: 700; color: var(--navy);
+      letter-spacing: 0.04em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .bulk-row {
+      display: grid;
+      grid-template-columns: 1fr 220px 32px;
+      gap: 14px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .bulk-row:last-child { border-bottom: none; }
+    .bulk-fname {
+      font-size: 13px; color: var(--text); font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bulk-conf {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+    .bulk-conf.high   { color: #166534; }
+    .bulk-conf.medium { color: #92400E; }
+    .bulk-conf.low    { color: #991B1B; }
+    .bulk-row select {
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .bulk-remove {
+      width: 28px; height: 28px;
+      border: none; background: rgba(220,38,38,0.08);
+      border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .bulk-remove:hover { background: rgba(220,38,38,0.18); }
+    .bulk-remove svg { width: 12px; height: 12px; color: #DC2626; }
+
+    .bulk-summary {
+      width: 100%; max-width: 1120px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      margin-bottom: 20px;
+    }
+    .bulk-summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+    }
+    .bulk-summary-card.detected { border-color: #BBF7D0; background: #F0FDF4; }
+    .bulk-summary-card.missing  { border-color: #FECACA; background: #FFF8F8; }
+    .bulk-summary-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .bulk-summary-card.detected .bulk-summary-title { color: #166534; }
+    .bulk-summary-card.missing  .bulk-summary-title { color: #991B1B; }
+    .bulk-pill {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin: 3px 4px 3px 0;
+    }
+    .bulk-summary-card.detected .bulk-pill { background: #DCFCE7; color: #166534; }
+    .bulk-summary-card.missing  .bulk-pill { background: #FEE2E2; color: #991B1B; }
+
+    .bulk-actions {
+      display: flex; gap: 10px; justify-content: center;
+      flex-wrap: wrap;
+    }
+    .bulk-add-more {
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px; font-weight: 700;
+      padding: 12px 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      color: var(--navy);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .bulk-add-more:hover { background: #F6F8FB; }
+
+    @media (max-width: 700px) {
+      .bulk-row { grid-template-columns: 1fr; gap: 6px; }
+      .bulk-summary { grid-template-columns: 1fr; }
+    }
+
     /* ── 8-SLOT GRID ── */
     .doc-grid {
       display: grid;
@@ -519,6 +693,208 @@
     .partner-slot.matched .matched-label { display: block; }
     .partner-slot input[type="file"] { display: none; }
 
+    /* ── COMPLIANCE SUMMARY (Phase 4) ── */
+    :root {
+      --naas-navy:  #1B3A6B;
+      --naas-green: #1f8a3a;
+      --naas-amber: #b76e00;
+      --naas-red:   #b3261e;
+    }
+
+    .cs-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .cs-section[open] > summary .cs-chev { transform: rotate(90deg); }
+    .cs-section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 11px 16px;
+      background: var(--naas-navy);
+      color: #fff;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+    }
+    .cs-section > summary::-webkit-details-marker { display: none; }
+    .cs-section > summary .cs-chev {
+      display: inline-block;
+      transition: transform 0.18s;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+    .cs-body { padding: 14px 16px; }
+
+    /* Overall status hero card */
+    .cs-overall {
+      display: flex; align-items: center; gap: 16px;
+      padding: 18px 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: #F8FAFC;
+      margin-bottom: 16px;
+    }
+    .cs-overall-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;
+    }
+    .cs-overall-version {
+      margin-left: auto;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      padding: 4px 10px; background: #fff; border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    /* Status badges (pill, 12px, semibold) */
+    .cs-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; font-weight: 600;
+      padding: 4px 12px; border-radius: 999px;
+      letter-spacing: 0.02em; white-space: nowrap;
+      line-height: 1.3;
+    }
+    .cs-badge--green { background: rgba(31,138,58,0.12); color: var(--naas-green); }
+    .cs-badge--amber { background: rgba(183,110,0,0.14); color: var(--naas-amber); }
+    .cs-badge--red   { background: rgba(179,38,30,0.12); color: var(--naas-red); }
+    .cs-badge--navy  { background: rgba(27,58,107,0.10); color: var(--naas-navy); }
+    .cs-badge--grey  { background: #EEF1F5; color: #6B7280; }
+    .cs-badge--lg    { font-size: 14px; padding: 6px 16px; }
+
+    /* Validity grid */
+    .cs-validity {
+      width: 100%; border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .cs-validity thead th {
+      background: #EEF2F8; color: var(--naas-navy);
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 8px 12px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .cs-validity td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .cs-validity tr:last-child td { border-bottom: none; }
+    .cs-validity .cs-doc-cell { font-weight: 700; color: var(--naas-navy); }
+    .cs-validity .cs-days     { color: var(--text-muted); font-size: 11.5px; }
+
+    /* Banking & Authority block */
+    .cs-auth {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 20px;
+    }
+    .cs-auth-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12.5px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .cs-auth-row:last-child, .cs-auth-row:nth-last-child(2) { border-bottom: none; }
+    .cs-auth-label {
+      flex: 1; color: var(--text-muted); font-weight: 600;
+    }
+    .cs-auth-value { font-weight: 700; color: var(--text); }
+    .cs-auth-banner {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #FFFBEB;
+      border: 1px solid #FCD34D;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px; color: #78350F; font-weight: 600;
+    }
+    .cs-auth-banner.cs-auth-banner--ok {
+      background: #ECFDF5; border-color: #6EE7B7; color: #065F46;
+    }
+
+    /* Presence table */
+    .cs-presence {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .cs-presence thead th {
+      background: #EEF2F8; color: var(--naas-navy);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 8px 10px; text-align: left;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .cs-presence tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .cs-presence tbody tr:last-child td { border-bottom: none; }
+    .cs-presence .cs-person { font-weight: 700; color: var(--naas-navy); }
+    .cs-presence .cs-role   { font-size: 11px; color: var(--text-muted); display: block; }
+
+    /* Flag cards (spec block format, severity left border) */
+    .cs-flags { display: flex; flex-direction: column; gap: 10px; }
+    .cs-flag {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--text-muted);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .cs-flag--warn  { border-left-color: var(--naas-amber); }
+    .cs-flag--error { border-left-color: var(--naas-red); }
+    .cs-flag-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: #FAFBFD;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 12.5px;
+    }
+    .cs-flag-code {
+      font-family: 'Manrope', monospace;
+      font-weight: 800; color: var(--naas-navy);
+      letter-spacing: 0.02em;
+    }
+    .cs-flag-issue {
+      flex: 1;
+      color: var(--text); font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    details.cs-flag[open] .cs-flag-head { border-bottom-color: var(--border); }
+    details.cs-flag > summary { list-style: none; }
+    details.cs-flag > summary::-webkit-details-marker { display: none; }
+    .cs-flag-body {
+      padding: 12px 14px;
+      font-size: 12.5px; line-height: 1.65;
+      color: var(--text);
+    }
+    .cs-flag-body dl {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 6px 12px;
+      margin: 0;
+    }
+    .cs-flag-body dt {
+      font-weight: 700; color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+      padding-top: 2px;
+    }
+    .cs-flag-body dd { margin: 0; color: var(--text); }
+    .cs-flag-body dd.cs-flag-action {
+      color: var(--naas-navy); font-weight: 700;
+    }
+
+    .cs-empty {
+      padding: 14px 16px;
+      font-size: 13px; color: var(--text-muted);
+      background: #F8FAFC; border-radius: var(--radius-sm);
+      text-align: center; font-weight: 500;
+    }
+
+    /* Section host wrapper */
+    #compliance-summary { text-align: left; margin-bottom: 24px; }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 1100px) {
       .doc-grid { grid-template-columns: repeat(2, 1fr); max-width: 740px; }
@@ -528,6 +904,12 @@
       main   { padding: 24px 16px 40px; }
       .doc-grid { grid-template-columns: 1fr; max-width: 380px; }
       .partner-grid { grid-template-columns: 1fr; }
+      .cs-auth { grid-template-columns: 1fr; }
+      .cs-validity, .cs-presence { display: block; overflow-x: auto; white-space: nowrap; }
+      .cs-flag-body dl { grid-template-columns: 1fr; gap: 2px 0; }
+      .cs-flag-body dt { padding-top: 8px; }
+      .cs-overall { flex-wrap: wrap; }
+      .cs-overall-version { margin-left: 0; margin-top: 8px; }
     }
   </style>
 </head>
@@ -559,6 +941,55 @@
   <div id="upload-section">
     <h1 class="page-title">Generate KYC Profile</h1>
     <p class="page-sub">Upload the company's documents below. The system will extract the details and generate a formatted KYC Word document.</p>
+
+    <div class="mode-toggle" role="tablist">
+      <button class="mode-btn active" id="mode-bytype-btn" data-mode="byType" type="button">Upload by Type</button>
+      <button class="mode-btn"        id="mode-bulk-btn"   data-mode="bulk"   type="button">Upload All Together</button>
+    </div>
+
+    <!-- ── Bulk upload mode ── -->
+    <div id="upload-bulk" style="display:none; width:100%; max-width:1120px;">
+      <div class="bulk-drop" id="bulk-drop">
+        <div class="bulk-drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="bulk-drop-title">Drop all documents here</div>
+        <div class="bulk-drop-sub">The system will identify each document and tell you what's missing.<br>PDF, JPG, PNG, or WEBP — multiple files at once.</div>
+        <input type="file" id="bulk-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <div id="bulk-classifying" class="bulk-classifying" style="display:none;">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+        <p id="bulk-classifying-text">Identifying your documents…</p>
+      </div>
+
+      <div id="bulk-summary" class="bulk-summary" style="display:none;"></div>
+
+      <div id="bulk-results" class="bulk-results" style="display:none;">
+        <div class="bulk-results-title">Detected Documents</div>
+        <div id="bulk-results-list"></div>
+      </div>
+
+      <div id="bulk-actions" class="bulk-actions" style="display:none;">
+        <button class="bulk-add-more" id="bulk-add-more-btn" type="button">+ Add More Files</button>
+        <button class="generate-btn" id="bulk-generate-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Generate KYC Report
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Per-type upload mode (default) ── -->
+    <div id="upload-bytype">
 
     <div class="doc-grid" id="doc-grid">
 
@@ -781,6 +1212,190 @@
         <input type="file" id="file-poa" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
       </div>
 
+      <!-- Certificate of Incorporation -->
+      <div class="doc-slot" id="slot-certificate_of_incorporation" data-type="certificate_of_incorporation">
+        <button class="slot-clear" data-type="certificate_of_incorporation" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <circle cx="12" cy="15" r="2"/>
+            <path d="M12 17v3"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Corporate Shareholder</div>
+        <div class="slot-label">Certificate of Incorporation</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-certificate_of_incorporation"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-certificate_of_incorporation" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Register of Shareholders -->
+      <div class="doc-slot" id="slot-register_of_shareholders" data-type="register_of_shareholders">
+        <button class="slot-clear" data-type="register_of_shareholders" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Corporate Shareholder</div>
+        <div class="slot-label">Register of Shareholders</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-register_of_shareholders"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-register_of_shareholders" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Register of Directors -->
+      <div class="doc-slot" id="slot-register_of_directors" data-type="register_of_directors">
+        <button class="slot-clear" data-type="register_of_directors" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 7h-3V5a3 3 0 0 0-3-3h-4a3 3 0 0 0-3 3v2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+            <path d="M9 11h6M9 15h4"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Corporate Shareholder</div>
+        <div class="slot-label">Register of Directors</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-register_of_directors"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-register_of_directors" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Certificate of Good Standing -->
+      <div class="doc-slot" id="slot-certificate_of_good_standing" data-type="certificate_of_good_standing">
+        <button class="slot-clear" data-type="certificate_of_good_standing" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="9" r="6"/>
+            <polyline points="9 9 11 11 15 7"/>
+            <path d="M8 14l-2 7 6-3 6 3-2-7"/>
+          </svg>
+        </div>
+        <div class="optional-tag">Corporate Shareholder</div>
+        <div class="slot-label">Certificate of Good Standing</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-certificate_of_good_standing"></div>
+        <div class="slot-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <input type="file" id="file-certificate_of_good_standing" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Free Zone Licence -->
+      <div class="doc-slot" id="slot-free_zone_license" data-type="free_zone_license">
+        <button class="slot-clear" data-type="free_zone_license" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Free Zone Licence</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-free_zone_license"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-free_zone_license" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- DCCI Membership -->
+      <div class="doc-slot" id="slot-dcci_membership" data-type="dcci_membership">
+        <button class="slot-clear" data-type="dcci_membership" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">DCCI Membership</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-dcci_membership"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-dcci_membership" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Renewal Receipt -->
+      <div class="doc-slot" id="slot-renewal_receipt" data-type="renewal_receipt">
+        <button class="slot-clear" data-type="renewal_receipt" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Renewal Receipt</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-renewal_receipt"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-renewal_receipt" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Audited Financials -->
+      <div class="doc-slot" id="slot-audited_financials" data-type="audited_financials">
+        <button class="slot-clear" data-type="audited_financials" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Audited Financials</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-audited_financials"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-audited_financials" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- UBO Declaration -->
+      <div class="doc-slot" id="slot-ubo_declaration" data-type="ubo_declaration">
+        <button class="slot-clear" data-type="ubo_declaration" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M12 14c-4 0-8 2-8 6v1h16v-1c0-4-4-6-8-6z"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">UBO Declaration</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-ubo_declaration"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-ubo_declaration" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
+      <!-- Specimen Signatures -->
+      <div class="doc-slot" id="slot-specimen_signatures" data-type="specimen_signatures">
+        <button class="slot-clear" data-type="specimen_signatures" title="Remove file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="slot-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.5c2-3 5-3 7-1.5s5 1.5 7-1.5"/><path d="M14 4l4 4-9 9-4 1 1-4z"/></svg>
+        </div>
+        <div class="optional-tag">Optional</div>
+        <div class="slot-label">Specimen Signatures</div>
+        <div class="slot-hint">Click or drag to upload</div>
+        <div class="slot-file-name" id="fname-specimen_signatures"></div>
+        <div class="slot-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-specimen_signatures" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
+      </div>
+
       <!-- Partners Annex -->
       <div class="doc-slot" id="slot-partners_annex" data-type="partners_annex">
         <button class="slot-clear" data-type="partners_annex" title="Remove file">
@@ -817,6 +1432,8 @@
       Generate KYC Report
     </button>
     <p class="btn-note">Upload at least one document. Trade Licence + MOA + personal documents + Board Resolution produce the most complete KYC profile.</p>
+
+    </div><!-- /#upload-bytype -->
   </div>
 
   <!-- ── Loading ── -->
@@ -896,8 +1513,19 @@
       <p class="success-company" id="success-company"></p>
       <p class="success-desc"   id="success-desc">Generated successfully. Review the extracted data below, then download the full report.</p>
 
-      <!-- Full report preview -->
-      <div id="report-panels"></div>
+      <!-- Compliance summary (Phase 4) -->
+      <div id="compliance-summary"></div>
+
+      <!-- Detailed extraction (raw / structured panels) -->
+      <details class="cs-section" id="detailed-extraction">
+        <summary>
+          <span>Detailed Extraction</span>
+          <span class="cs-chev">›</span>
+        </summary>
+        <div class="cs-body" style="padding: 14px 0 0;">
+          <div id="report-panels"></div>
+        </div>
+      </details>
 
       <div class="nas-badge" id="nas-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -914,7 +1542,7 @@
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
-        Download KYC Report (.docx)
+        <span id="download-label">Download KYC Report (.docx)</span>
       </a>
       <button class="reset-btn" id="reset-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -958,12 +1586,20 @@
   const ALLOWED_EXT = ['pdf','jpg','jpeg','png','webp'];
   const DOC_TYPES   = ['trade_license', 'ejari', 'moa', 'insurance', 'passport', 'emirates_id',
                        'residence_visa', 'vat_certificate', 'board_resolution', 'poa',
-                       'partners_annex'];
+                       'partners_annex',
+                       'certificate_of_incorporation', 'register_of_shareholders',
+                       'register_of_directors', 'certificate_of_good_standing',
+                       'free_zone_license', 'dcci_membership', 'renewal_receipt',
+                       'audited_financials', 'ubo_declaration', 'specimen_signatures'];
 
   // Each key holds an array of File objects (null = nothing uploaded yet)
   const files = { trade_license: null, ejari: null, moa: null, insurance: null, passport: null,
                   emirates_id: null, residence_visa: null, vat_certificate: null,
-                  board_resolution: null, poa: null, partners_annex: null };
+                  board_resolution: null, poa: null, partners_annex: null,
+                  certificate_of_incorporation: null, register_of_shareholders: null,
+                  register_of_directors: null, certificate_of_good_standing: null,
+                  free_zone_license: null, dcci_membership: null, renewal_receipt: null,
+                  audited_financials: null, ubo_declaration: null, specimen_signatures: null };
 
   const uploadSection       = document.getElementById('upload-section');
   const loadingSection      = document.getElementById('loading-section');
@@ -1050,6 +1686,257 @@
     generateBtn.disabled = !anyFile;
   }
 
+  // ── Mode toggle (Upload by type / Upload all together) ───────────────────────
+  const modeByTypeBtn = document.getElementById('mode-bytype-btn');
+  const modeBulkBtn   = document.getElementById('mode-bulk-btn');
+  const uploadByType  = document.getElementById('upload-bytype');
+  const uploadBulk    = document.getElementById('upload-bulk');
+
+  function setMode(mode) {
+    const isBulk = mode === 'bulk';
+    modeBulkBtn.classList.toggle('active', isBulk);
+    modeByTypeBtn.classList.toggle('active', !isBulk);
+    uploadBulk.style.display   = isBulk ? 'block' : 'none';
+    uploadByType.style.display = isBulk ? 'none'  : 'block';
+  }
+  modeByTypeBtn.addEventListener('click', () => setMode('byType'));
+  modeBulkBtn.addEventListener('click',   () => setMode('bulk'));
+
+  // ── Bulk upload mode ─────────────────────────────────────────────────────────
+  // Each entry: { file: File, doc_type: string, confidence: 'high|medium|low', uid: number }
+  const bulkItems = [];
+  let bulkUidCounter = 0;
+
+  // Display labels for doc types
+  const DOC_LABELS = {
+    trade_license: 'Trade Licence',
+    ejari: 'Ejari Contract',
+    moa: 'MOA',
+    insurance: 'Insurance',
+    passport: 'Passport',
+    emirates_id: 'Emirates ID',
+    residence_visa: 'Residence Visa',
+    vat_certificate: 'VAT Certificate',
+    board_resolution: 'Board Resolution',
+    poa: 'Power of Attorney',
+    partners_annex: 'Partners Annex',
+    certificate_of_incorporation: 'Certificate of Incorporation',
+    register_of_shareholders: 'Register of Shareholders',
+    register_of_directors:    'Register of Directors',
+    certificate_of_good_standing: 'Certificate of Good Standing',
+    free_zone_license: 'Free Zone Licence',
+    dcci_membership: 'DCCI Membership',
+    renewal_receipt: 'Renewal Receipt',
+    audited_financials: 'Audited Financials',
+    ubo_declaration: 'UBO Declaration',
+    specimen_signatures: 'Specimen Signatures',
+    unknown: 'Unknown — please choose',
+  };
+
+  // Documents we'll prompt the user to add if missing
+  const SUGGESTED_DOCS = ['trade_license', 'moa', 'passport', 'emirates_id',
+                          'ejari', 'board_resolution'];
+
+  const bulkDrop          = document.getElementById('bulk-drop');
+  const bulkFileInput     = document.getElementById('bulk-file-input');
+  const bulkClassifying   = document.getElementById('bulk-classifying');
+  const bulkClassifyText  = document.getElementById('bulk-classifying-text');
+  const bulkSummary       = document.getElementById('bulk-summary');
+  const bulkResults       = document.getElementById('bulk-results');
+  const bulkResultsList   = document.getElementById('bulk-results-list');
+  const bulkActions       = document.getElementById('bulk-actions');
+  const bulkAddMoreBtn    = document.getElementById('bulk-add-more-btn');
+  const bulkGenerateBtn   = document.getElementById('bulk-generate-btn');
+
+  bulkDrop.addEventListener('click', () => bulkFileInput.click());
+  bulkDrop.addEventListener('dragenter', e => { e.preventDefault(); bulkDrop.classList.add('drag-over'); });
+  bulkDrop.addEventListener('dragover',  e => { e.preventDefault(); bulkDrop.classList.add('drag-over'); });
+  bulkDrop.addEventListener('dragleave', () => bulkDrop.classList.remove('drag-over'));
+  bulkDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    bulkDrop.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleBulkFiles(Array.from(e.dataTransfer.files));
+  });
+  bulkFileInput.addEventListener('change', () => {
+    if (bulkFileInput.files.length) handleBulkFiles(Array.from(bulkFileInput.files));
+    bulkFileInput.value = '';
+  });
+  bulkAddMoreBtn.addEventListener('click', () => bulkFileInput.click());
+  bulkGenerateBtn.addEventListener('click', generateKycFromBulk);
+
+  async function handleBulkFiles(fileList) {
+    const valid = fileList.filter(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      if (!ALLOWED_EXT.includes(ext)) {
+        alert(`Unsupported file type ".${ext}". Please upload a PDF, JPG, PNG, or WEBP.`);
+        return false;
+      }
+      return true;
+    });
+    if (!valid.length) return;
+
+    bulkClassifyText.textContent = `Identifying ${valid.length} document${valid.length !== 1 ? 's' : ''}…`;
+    bulkClassifying.style.display = 'block';
+
+    const formData = new FormData();
+    valid.forEach(f => formData.append('files', f));
+
+    try {
+      const res = await fetch('/classify-documents', { method: 'POST', body: formData });
+      if (!res.ok) {
+        let msg = 'Failed to identify documents.';
+        try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+        bulkClassifying.style.display = 'none';
+        alert(msg);
+        return;
+      }
+      const data = await res.json();
+      const results = data.results || [];
+      results.forEach((r, idx) => {
+        bulkItems.push({
+          uid: ++bulkUidCounter,
+          file: valid[idx],
+          doc_type: r.doc_type || 'unknown',
+          confidence: r.confidence || 'low',
+        });
+      });
+    } catch (err) {
+      alert('Connection error. Please check the server is running and try again.');
+    } finally {
+      bulkClassifying.style.display = 'none';
+      renderBulkResults();
+    }
+  }
+
+  function renderBulkResults() {
+    bulkResultsList.innerHTML = '';
+
+    if (!bulkItems.length) {
+      bulkResults.style.display  = 'none';
+      bulkSummary.style.display  = 'none';
+      bulkActions.style.display  = 'none';
+      return;
+    }
+
+    bulkItems.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'bulk-row';
+
+      const left = document.createElement('div');
+      const fname = document.createElement('span');
+      fname.className = 'bulk-fname';
+      fname.textContent = item.file.name;
+      left.appendChild(fname);
+      const conf = document.createElement('span');
+      conf.className = `bulk-conf ${item.confidence}`;
+      conf.textContent = item.confidence;
+      left.appendChild(conf);
+      row.appendChild(left);
+
+      const sel = document.createElement('select');
+      [['unknown', '— Select type —'], ...DOC_TYPES.map(t => [t, DOC_LABELS[t]])].forEach(([val, lbl]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = lbl;
+        if (val === item.doc_type) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => {
+        item.doc_type = sel.value;
+        renderBulkSummary();
+      });
+      row.appendChild(sel);
+
+      const rm = document.createElement('button');
+      rm.className = 'bulk-remove';
+      rm.type = 'button';
+      rm.title = 'Remove this file';
+      rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      rm.addEventListener('click', () => {
+        const idx = bulkItems.findIndex(x => x.uid === item.uid);
+        if (idx !== -1) bulkItems.splice(idx, 1);
+        renderBulkResults();
+      });
+      row.appendChild(rm);
+
+      bulkResultsList.appendChild(row);
+    });
+
+    bulkResults.style.display = 'block';
+    bulkActions.style.display = 'flex';
+    renderBulkSummary();
+  }
+
+  function renderBulkSummary() {
+    const detected = new Set(bulkItems.map(x => x.doc_type).filter(t => t && t !== 'unknown'));
+    const missing  = SUGGESTED_DOCS.filter(t => !detected.has(t));
+
+    const detectedHtml = detected.size
+      ? Array.from(detected).map(t => `<span class="bulk-pill">✓ ${esc(DOC_LABELS[t] || t)}</span>`).join('')
+      : '<span style="font-size:12px; color: var(--text-muted);">None yet — drop files above.</span>';
+
+    const missingHtml = missing.length
+      ? missing.map(t => `<span class="bulk-pill">${esc(DOC_LABELS[t] || t)}</span>`).join('')
+      : '<span style="font-size:12px; color: var(--text-muted);">All commonly-needed documents present.</span>';
+
+    bulkSummary.innerHTML =
+      `<div class="bulk-summary-card detected">
+        <div class="bulk-summary-title">Detected (${detected.size})</div>
+        <div>${detectedHtml}</div>
+       </div>
+       <div class="bulk-summary-card missing">
+        <div class="bulk-summary-title">Suggested to Add (${missing.length})</div>
+        <div>${missingHtml}</div>
+       </div>`;
+    bulkSummary.style.display = 'grid';
+
+    const hasUsable = bulkItems.some(x => x.doc_type && x.doc_type !== 'unknown');
+    const hasUnknown = bulkItems.some(x => !x.doc_type || x.doc_type === 'unknown');
+    bulkGenerateBtn.disabled = !hasUsable || hasUnknown;
+    bulkGenerateBtn.title = hasUnknown
+      ? 'Choose a type for every "Unknown" file before generating.'
+      : '';
+  }
+
+  async function generateKycFromBulk() {
+    const usable = bulkItems.filter(x => x.doc_type && x.doc_type !== 'unknown');
+    if (!usable.length) return;
+
+    show('loading');
+    animateSteps();
+
+    const formData = new FormData();
+    usable.forEach(item => formData.append(item.doc_type, item.file));
+
+    try {
+      const res = await fetch('/generate-kyc', { method: 'POST', body: formData });
+      if (!res.ok) {
+        let msg = 'Failed to generate KYC report.';
+        try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+        showError(msg); return;
+      }
+      const data = await res.json();
+      if (data.needs_partner_docs) {
+        clearInterval(stepTimer);
+        pendingExtracted = data.extracted_data;
+        pendingPartners  = data.partners;
+        pendingSessionId = data.session_id;
+        renderPartnerDocsScreen(data.partners);
+        show('partner-docs');
+        return;
+      }
+      showSuccess(data);
+    } catch (err) {
+      showError('Connection error. Please check the server is running and try again.');
+    }
+  }
+
+  function resetBulkMode() {
+    bulkItems.length = 0;
+    bulkFileInput.value = '';
+    renderBulkResults();
+  }
+
   // ── Generate ─────────────────────────────────────────────────────────────────
 
   generateBtn.addEventListener('click', generateKyc);
@@ -1114,9 +2001,19 @@
     document.getElementById('download-link').download = data.filename || 'KYC_Report.docx';
 
     const report = data.report || {};
+    const version = (report.analysis && report.analysis.version) ? report.analysis.version : null;
     document.getElementById('success-company').textContent = report.company_name || '';
     document.getElementById('success-desc').textContent = 'Report generated. Review the extracted data below, then download the full report.';
 
+    // Update download label with profile version (e.g. "Download KYC Profile (v3).docx")
+    const dlLabel = document.getElementById('download-label');
+    if (dlLabel) {
+      dlLabel.textContent = version
+        ? `Download KYC Profile (${version}).docx`
+        : 'Download KYC Report (.docx)';
+    }
+
+    renderComplianceSummary(report);
     renderReport(report);
 
     const nasBadge = document.getElementById('nas-badge');
@@ -1149,21 +2046,35 @@
 
       const initials = (partner.name || 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
       const meta = [partner.nationality, partner.share_percentage].filter(Boolean).join(' · ');
+      const isCorporate = partner.type === 'corporate' || partner.is_corporate === true;
+      const typeBadge = isCorporate
+        ? `<span class="cs-badge cs-badge--navy" style="margin-left:8px;">CORPORATE</span>`
+        : `<span class="cs-badge cs-badge--green" style="margin-left:8px;">NATURAL</span>`;
+
+      const bodyHtml = isCorporate
+        ? `<div style="font-size:12px; color: var(--text-muted); padding: 10px 0; line-height:1.6;">
+             Corporate shareholder. Upload Certificate of Incorporation, Register of
+             Shareholders, Register of Directors and Certificate of Good Standing
+             via the main upload screen.
+           </div>`
+        : `<div class="partner-grid">
+            ${buildPartnerSlot(idx, 'passport', 'Passport', partner.has_passport)}
+            ${buildPartnerSlot(idx, 'emirates_id', 'Emirates ID', partner.has_emirates_id)}
+            ${buildPartnerSlot(idx, 'residence_visa', 'Residence Visa', partner.has_residence_visa)}
+          </div>`;
 
       card.innerHTML =
         `<div class="partner-header">
           <div class="partner-avatar">${esc(initials)}</div>
           <div class="partner-info">
-            <div class="partner-name">${esc(partner.name || 'Partner ' + (idx + 1))}</div>
+            <div class="partner-name">${esc(partner.name || 'Partner ' + (idx + 1))}${typeBadge}</div>
             ${meta ? `<div class="partner-meta">${esc(meta)}</div>` : ''}
           </div>
         </div>
-        <div class="partner-grid">
-          ${buildPartnerSlot(idx, 'passport', 'Passport', partner.has_passport)}
-          ${buildPartnerSlot(idx, 'emirates_id', 'Emirates ID', partner.has_emirates_id)}
-          ${buildPartnerSlot(idx, 'residence_visa', 'Residence Visa', partner.has_residence_visa)}
-        </div>`;
+        ${bodyHtml}`;
       container.appendChild(card);
+
+      if (isCorporate) return; // skip per-slot wiring for corporate partners
 
       // Wire up click/change handlers for non-matched slots
       ['passport', 'emirates_id', 'residence_visa'].forEach(dtype => {
@@ -1460,6 +2371,286 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // ── Compliance summary helpers (Phase 4) ─────────────────────────────────
+
+  // Map a doc validity status → badge class + label
+  function statusBadge(status, label) {
+    const s = String(status || '').toLowerCase();
+    const cfg = {
+      valid:         { cls: 'cs-badge--green', txt: label || 'VALID' },
+      ongoing:       { cls: 'cs-badge--green', txt: label || 'ONGOING' },
+      expiring_soon: { cls: 'cs-badge--amber', txt: label || 'EXPIRING SOON' },
+      expired:       { cls: 'cs-badge--red',   txt: label || 'EXPIRED' },
+      missing:       { cls: 'cs-badge--grey',  txt: label || 'MISSING' },
+    }[s] || { cls: 'cs-badge--grey', txt: label || (status ? status.toUpperCase() : '—') };
+    return `<span class="cs-badge ${cfg.cls}">${esc(cfg.txt)}</span>`;
+  }
+
+  // Severity (warn / error) → badge class
+  function flagSeverityClass(severity) {
+    const s = String(severity || '').toLowerCase();
+    if (s === 'error' || s === 'critical' || s === 'high') return 'cs-badge--red';
+    if (s === 'warn'  || s === 'warning'  || s === 'medium') return 'cs-badge--amber';
+    if (s === 'info'  || s === 'low')                       return 'cs-badge--navy';
+    return 'cs-badge--grey';
+  }
+
+  // KYC status (overall) → badge class
+  function kycStatusClass(kyc) {
+    const k = String(kyc || '').toUpperCase().replace(/[\s-]/g, '_');
+    if (k === 'BLOCKED')                          return 'cs-badge--red';
+    if (k === 'ON_HOLD')                          return 'cs-badge--red';
+    if (k === 'INCOMPLETE')                       return 'cs-badge--amber';
+    if (k === 'COMPLIANCE_GAP')                   return 'cs-badge--amber';
+    if (k === 'COMPLETE')                         return 'cs-badge--green';
+    return 'cs-badge--navy';
+  }
+
+  // Normalise & format an overall-status label (severity + KYC status precedence)
+  function overallStatusFromFlags(flags) {
+    if (!flags || !flags.length) return { label: 'COMPLETE', cls: 'cs-badge--green' };
+    const order = ['BLOCKED', 'ON_HOLD', 'COMPLIANCE_GAP', 'INCOMPLETE', 'COMPLETE'];
+    let pick = 'COMPLETE';
+    flags.forEach(f => {
+      const k = String(f.kyc_status || '').toUpperCase().replace(/[\s-]/g, '_');
+      if (order.indexOf(k) > -1 && order.indexOf(k) < order.indexOf(pick)) pick = k;
+    });
+    return { label: pick.replace('_', ' '), cls: kycStatusClass(pick) };
+  }
+
+  // Spec-block format flag card
+  function formatFlag(flag) {
+    const sevCls   = flagSeverityClass(flag.severity);
+    const sev      = String(flag.severity || '').toUpperCase();
+    const cardCls  = sev === 'ERROR' || sev === 'CRITICAL' ? 'cs-flag--error' : 'cs-flag--warn';
+    const docs     = Array.isArray(flag.documents_affected)
+                       ? flag.documents_affected.join(', ')
+                       : (flag.documents_affected || '');
+    const kyc      = String(flag.kyc_status || '').toUpperCase().replace(/_/g, ' ');
+    const rows = [
+      ['Severity',  `<span class="cs-badge ${sevCls}">${esc(sev || '—')}</span>`],
+      ['KYC Status',kyc ? `<span class="cs-badge ${kycStatusClass(flag.kyc_status)}">${esc(kyc)}</span>` : '—'],
+      ['Documents', esc(docs || '—')],
+      ['Field',     esc(flag.field || '—')],
+      ['Issue',     esc(flag.issue || '—')],
+    ];
+    const rowsHtml = rows.map(([k, v]) =>
+      `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+    return `
+      <details class="cs-flag ${cardCls}">
+        <summary class="cs-flag-head">
+          <span class="cs-flag-code">${esc(flag.code || '—')}</span>
+          <span class="cs-badge ${sevCls}">${esc(sev || '—')}</span>
+          <span class="cs-flag-issue">${esc(flag.issue || '')}</span>
+          <span class="cs-chev">›</span>
+        </summary>
+        <div class="cs-flag-body">
+          <dl>
+            ${rowsHtml}
+            <dt>Action</dt>
+            <dd class="cs-flag-action">${esc(flag.recommended_action || '—')}</dd>
+          </dl>
+        </div>
+      </details>`;
+  }
+
+  // ── Compliance summary renderer ──────────────────────────────────────────
+
+  const VALIDITY_LABELS = {
+    trade_license:    'Trade Licence',
+    ejari:            'EJARI Tenancy',
+    moa:              'Memorandum of Association',
+    insurance:        'Insurance',
+    vat_certificate:  'VAT Certificate',
+    emirates_id:      'Emirates ID',
+    passport:         'Passport',
+    residence_visa:   'Residence Visa',
+    board_resolution: 'Board Resolution',
+    poa:              'Power of Attorney',
+    free_zone_license:'Free Zone Licence',
+    dcci_membership:  'DCCI Membership',
+  };
+
+  function renderComplianceSummary(report) {
+    const host = document.getElementById('compliance-summary');
+    host.innerHTML = '';
+    const analysis = report && report.analysis;
+    if (!analysis || analysis.error) return;
+
+    const flags = analysis.flags || [];
+    const overall = overallStatusFromFlags(flags);
+    const version = analysis.version || 'v1';
+
+    // Overall hero card
+    const hero = document.createElement('div');
+    hero.className = 'cs-overall';
+    hero.innerHTML = `
+      <div>
+        <div class="cs-overall-label">Overall KYC Status</div>
+        <span class="cs-badge ${overall.cls} cs-badge--lg">${esc(overall.label)}</span>
+      </div>
+      <span class="cs-overall-version">Profile ${esc(version)}</span>`;
+    host.appendChild(hero);
+
+    // Section: Flags
+    host.appendChild(buildFlagsSection(flags));
+
+    // Section: Validity
+    host.appendChild(buildValiditySection(analysis.validity || {}));
+
+    // Section: Banking & Authority
+    host.appendChild(buildAuthSection(analysis.moa_authority || {}, analysis));
+
+    // Section: Presence
+    host.appendChild(buildPresenceSection(analysis.presence || []));
+  }
+
+  function csSection(title, contentHtml, openByDefault) {
+    const det = document.createElement('details');
+    det.className = 'cs-section';
+    if (openByDefault !== false) det.open = true;
+    det.innerHTML = `
+      <summary>
+        <span>${esc(title)}</span>
+        <span class="cs-chev">›</span>
+      </summary>
+      <div class="cs-body">${contentHtml}</div>`;
+    return det;
+  }
+
+  function buildFlagsSection(flags) {
+    if (!flags.length) {
+      return csSection('Compliance Flags',
+        `<div class="cs-empty">No compliance flags raised.</div>`, true);
+    }
+    const cards = `<div class="cs-flags">${flags.map(formatFlag).join('')}</div>`;
+    return csSection(`Compliance Flags (${flags.length})`, cards, true);
+  }
+
+  function buildValiditySection(validity) {
+    const keys = Object.keys(validity).filter(k => k !== 'partner_personal_docs');
+    const partnerVal = validity.partner_personal_docs;
+    if (!keys.length && !(partnerVal && partnerVal.length)) {
+      return csSection('Validity', `<div class="cs-empty">No dated documents to evaluate.</div>`, true);
+    }
+
+    const rows = keys.map(k => {
+      const v = validity[k] || {};
+      const label = VALIDITY_LABELS[k] || k;
+      const expiry = v.expiry_date ? v.expiry_date : (v.note || '—');
+      const days = (v.days_remaining === null || v.days_remaining === undefined)
+        ? ''
+        : (v.days_remaining < 0
+            ? `${Math.abs(v.days_remaining)} day${Math.abs(v.days_remaining) === 1 ? '' : 's'} ago`
+            : `${v.days_remaining} day${v.days_remaining === 1 ? '' : 's'} left`);
+      return `<tr>
+        <td class="cs-doc-cell">${esc(label)}</td>
+        <td>${esc(expiry)}</td>
+        <td class="cs-days">${esc(days)}</td>
+        <td>${statusBadge(v.status)}</td>
+      </tr>`;
+    }).join('');
+
+    let partnerRows = '';
+    if (Array.isArray(partnerVal) && partnerVal.length) {
+      partnerVal.forEach(p => {
+        ['passport','emirates_id','residence_visa'].forEach(sub => {
+          const v = p[sub];
+          if (!v) return;
+          const subLabel = { passport: 'Passport', emirates_id: 'Emirates ID', residence_visa: 'Residence Visa' }[sub];
+          const days = v.days_remaining < 0
+            ? `${Math.abs(v.days_remaining)} days ago`
+            : `${v.days_remaining} days left`;
+          partnerRows += `<tr>
+            <td class="cs-doc-cell">${esc(subLabel)} — ${esc(p.partner_name || '')}</td>
+            <td>${esc(v.expiry_date || '—')}</td>
+            <td class="cs-days">${esc(days)}</td>
+            <td>${statusBadge(v.status)}</td>
+          </tr>`;
+        });
+      });
+    }
+
+    const tbl = `
+      <table class="cs-validity">
+        <thead><tr>
+          <th>Document</th><th>Expiry</th><th>Remaining</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rows}${partnerRows}</tbody>
+      </table>`;
+    return csSection('Document Validity', tbl, true);
+  }
+
+  function buildAuthSection(auth, analysis) {
+    const yesNo = (v) => v === true ? 'Yes' : v === false ? 'No' : '—';
+    const yesCls = (v) => v === true ? 'cs-badge--green' : v === false ? 'cs-badge--red' : 'cs-badge--grey';
+    const powers = auth.powers || {};
+
+    const mode = (auth.signing_mode || 'unknown');
+    const named = auth.named_signatory || '—';
+    const sufficient = auth.sufficient === true;
+    const required = auth.resolution_required === true;
+    const reason = auth.reason || '';
+
+    const rowsHtml = `
+      <div class="cs-auth-row"><span class="cs-auth-label">Signing Mode</span>
+        <span class="cs-badge cs-badge--navy">${esc(String(mode).toUpperCase())}</span></div>
+      <div class="cs-auth-row"><span class="cs-auth-label">Named Signatory</span>
+        <span class="cs-auth-value">${esc(named)}</span></div>
+      <div class="cs-auth-row"><span class="cs-auth-label">Open / Close Accounts</span>
+        <span class="cs-badge ${yesCls(powers.open_close_accounts)}">${yesNo(powers.open_close_accounts)}</span></div>
+      <div class="cs-auth-row"><span class="cs-auth-label">Sign Cheques</span>
+        <span class="cs-badge ${yesCls(powers.sign_cheques)}">${yesNo(powers.sign_cheques)}</span></div>
+      <div class="cs-auth-row"><span class="cs-auth-label">Transfer / Withdraw</span>
+        <span class="cs-badge ${yesCls(powers.transfer_withdraw_funds)}">${yesNo(powers.transfer_withdraw_funds)}</span></div>
+      <div class="cs-auth-row"><span class="cs-auth-label">Delegate via POA</span>
+        <span class="cs-badge ${yesCls(powers.delegate_via_poa)}">${yesNo(powers.delegate_via_poa)}</span></div>`;
+
+    const banner = required
+      ? `<div class="cs-auth-banner">⚠ Board Resolution required: <strong>Yes</strong>${reason ? ' — ' + esc(reason) : ''}</div>`
+      : `<div class="cs-auth-banner cs-auth-banner--ok">✓ Board Resolution required: <strong>No</strong>${reason ? ' — ' + esc(reason) : ''}</div>`;
+
+    const html = `<div class="cs-auth">${rowsHtml}</div>${banner}`;
+    return csSection('Banking & Authority', html, true);
+  }
+
+  function buildPresenceSection(presence) {
+    if (!presence.length) {
+      return csSection('Physical Presence', `<div class="cs-empty">No signatories identified.</div>`, true);
+    }
+    const rows = presence.map(p => {
+      const inUae = p.in_uae === true
+        ? `<span class="cs-badge cs-badge--green">In UAE</span>`
+        : `<span class="cs-badge cs-badge--red">Not in UAE</span>`;
+      const proceed = p.can_proceed === true
+        ? `<span class="cs-badge cs-badge--green">Yes</span>`
+        : `<span class="cs-badge cs-badge--amber">Blocked</span>`;
+      return `<tr>
+        <td>
+          <span class="cs-person">${esc(p.person || '—')}</span>
+          <span class="cs-role">${esc(p.role || '')}</span>
+        </td>
+        <td>${statusBadge(p.eid_status)}</td>
+        <td>${statusBadge(p.passport_status)}</td>
+        <td>${statusBadge(p.visa_status)}</td>
+        <td>${inUae}</td>
+        <td>${proceed}</td>
+        <td>${esc(p.action || '—')}</td>
+      </tr>`;
+    }).join('');
+
+    const tbl = `
+      <table class="cs-presence">
+        <thead><tr>
+          <th>Signatory</th><th>EID</th><th>Passport</th><th>Visa</th>
+          <th>In UAE</th><th>Can Proceed</th><th>Action</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    return csSection('Physical Presence', tbl, true);
+  }
+
   let stepTimer = null;
   function animateSteps() {
     const steps = ['step-extract', 'step-build'];
@@ -1496,10 +2687,16 @@
   function reset() {
     clearInterval(stepTimer);
     DOC_TYPES.forEach(t => clearFile(t));  // also resets files[t] to null
+    resetBulkMode();
+    setMode('byType');
     document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active'));
     document.getElementById('nas-badge').style.display = 'none';
     document.getElementById('nas-folder-name').textContent = '';
     document.getElementById('report-panels').innerHTML = '';
+    const cs = document.getElementById('compliance-summary');
+    if (cs) cs.innerHTML = '';
+    const dlLabel = document.getElementById('download-label');
+    if (dlLabel) dlLabel.textContent = 'Download KYC Report (.docx)';
     document.getElementById('success-company').textContent = '';
     // Clear multi-partner state
     pendingExtracted = null;

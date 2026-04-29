@@ -200,6 +200,48 @@ def _match2(a: str, b: str) -> str:
     return "✓" if _names_match(a, b) else "⚠"
 
 
+def _passport_eid_format(pp: dict) -> str:
+    """Rebuild the passport holder name in EID order: given + father + surname.
+    Falls back to the raw `holder_name` when the split fields aren't available."""
+    if not pp:
+        return ""
+    given   = _s(pp.get("given_names")).strip()
+    father  = _s(pp.get("father_name")).strip()
+    surname = _s(pp.get("surname")).strip()
+    parts = [p for p in (given, father, surname) if p]
+    if parts:
+        # Avoid duplicating tokens (e.g. when father's name is already in given_names)
+        seen: set[str] = set()
+        out: list[str] = []
+        for chunk in parts:
+            for tok in chunk.split():
+                key = _normalise(tok)
+                if key and key not in seen:
+                    seen.add(key)
+                    out.append(tok)
+        if out:
+            return " ".join(out)
+    return _s(pp.get("holder_name")).strip()
+
+
+def _id_name_match(a: str, b: str) -> str:
+    """Match for personal-ID names where one side may carry extra parts
+    (UAE EID convention: given + father + grandfather + surname) while
+    passport/visa shows fewer tokens. A token-subset (one side fully contained
+    in the other) with ≥2 shared tokens counts as a match."""
+    if not a or a == "—" or not b or b == "—":
+        return "—"
+    if _names_match(a, b):
+        return "✓"
+    ta, tb = _name_tokens(a), _name_tokens(b)
+    if not ta or not tb:
+        return "⚠"
+    smaller, larger = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    if smaller.issubset(larger) and len(smaller) >= 2:
+        return "✓"
+    return "⚠"
+
+
 def _extract_percent(s: str) -> float | None:
     """Pull a percentage out of strings like '25.0%', '100%', '25 Shares AED 50,000 25%'.
     Returns the LAST percent found (most specific share %), or None."""
@@ -503,6 +545,29 @@ def _three_way_table(doc, headers: tuple, rows: list[tuple]):
     _spacer(doc, 6)
 
 
+def _summary_table(doc, rows: list[tuple]):
+    """3-column executive-summary table: Check | Details | Status (✓/⚠/✗)."""
+    if not rows:
+        return
+    headers = ("Check", "Details", "Status")
+    col_w   = [5.2, 8.3, 2.5]
+    tbl = doc.add_table(rows=1 + len(rows), cols=3)
+    tbl.alignment = WD_TABLE_ALIGNMENT.LEFT
+    _remove_tbl_borders(tbl)
+    _set_tbl_width(tbl, _TEXT_W)
+    for ci, (lbl, w) in enumerate(zip(headers, col_w)):
+        _styled_cell(tbl.rows[0].cells[ci], lbl, _BLUE, w,
+                     bold=True, center=(ci == 2), color=_WHITE, pt=9)
+    for ri, (chk, det, sym) in enumerate(rows):
+        fill = _WHITE if ri % 2 == 0 else _OFF_WHITE
+        row  = tbl.rows[ri + 1]
+        _styled_cell(row.cells[0], chk, fill, col_w[0], bold=True, color=_NAVY)
+        _styled_cell(row.cells[1], det, fill, col_w[1], color=_DARK)
+        _styled_cell(row.cells[2], sym, fill, col_w[2], bold=True, center=True,
+                     color=_match_color(sym), pt=13)
+    _spacer(doc, 6)
+
+
 def _doc_status_table(doc, rows: list[tuple]):
     """5-column personal document validity table.
     Columns: Document | Holder Name | Document No. | Expiry Date | Status"""
@@ -670,6 +735,186 @@ def generate_kyc_document(extracted: dict, analysis: dict | None, today: date) -
     div._p.get_or_add_pPr().append(pBdr)
 
     n = 1  # auto section counter
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # 1 — EXECUTIVE SUMMARY (first-page snapshot)
+    # ══════════════════════════════════════════════════════════════════════════
+    _moa_shareholders_summary = (
+        moa.get("shareholders") if isinstance(moa.get("shareholders"), list) else []
+    )
+    _moa_shareholders_summary = [
+        s for s in _moa_shareholders_summary if isinstance(s, dict) and s.get("name")
+    ]
+
+    summary_rows: list[tuple] = []
+
+    # 1. Passport ↔ EID name match (passport rebuilt in EID order: given + father + surname)
+    if pp_up and eid_up:
+        pp_n_eid_fmt = _passport_eid_format(pp) or _v(pp, "holder_name", "")
+        eid_n = _v(eid, "holder_name", "")
+        sym = _id_name_match(pp_n_eid_fmt, eid_n)
+        summary_rows.append((
+            "Passport ↔ EID Name Match",
+            f"Passport (EID format): {pp_n_eid_fmt or '—'}  |  EID: {eid_n or '—'}",
+            sym,
+        ))
+
+    # 2. EID expiry > 30 days
+    if eid_up:
+        summary_rows.append((
+            "Emirates ID Expiry (>30 days required)",
+            eid_label,
+            eid_sym,
+        ))
+
+    # 3. Passport expiry > 30 days
+    if pp_up:
+        summary_rows.append((
+            "Passport Expiry (>30 days required)",
+            pp_label,
+            pp_sym,
+        ))
+
+    # 4. EJARI ↔ Trade Licence address match
+    if ej_up and tl_up:
+        tl_addr_full = " ".join(filter(None, [
+            _v(tl, "unit_number", ""),
+            _v(tl, "building_name", ""),
+            _v(tl, "area", ""),
+        ])).strip() or _v(tl, "registered_address", "")
+        ej_addr_full = " ".join(filter(None, [
+            _v(ej, "unit_number", ""),
+            _v(ej, "building_name", ""),
+            _v(ej, "area", ""),
+        ])).strip()
+        addr_sym = _match2(tl_addr_full, ej_addr_full)
+        summary_rows.append((
+            "EJARI ↔ Trade Licence Address",
+            f"TL: {tl_addr_full or '—'}  |  EJARI: {ej_addr_full or '—'}",
+            addr_sym,
+        ))
+
+    # 5. EJARI expiry > 30 days
+    if ej_up:
+        summary_rows.append((
+            "EJARI Expiry (>30 days required)",
+            ej_label,
+            ej_sym,
+        ))
+
+    # 5b. Trade Licence expiry > 30 days
+    if tl_up:
+        summary_rows.append((
+            "Trade Licence Expiry (>30 days required)",
+            tl_label,
+            tl_sym,
+        ))
+
+    # 6. MOA ↔ EID name match
+    if moa_up and eid_up:
+        eid_n = _v(eid, "holder_name", "")
+        moa_names = [
+            _s(s.get("name", "")).strip()
+            for s in _moa_shareholders_summary
+            if _s(s.get("name", "")).strip()
+        ]
+        if not moa_names:
+            owner = _v(moa, "owner_name", "")
+            if owner and owner != "—":
+                moa_names = [owner]
+        if moa_names and eid_n and eid_n != "—":
+            matched = any(_id_name_match(eid_n, mn) == "✓" for mn in moa_names)
+            sym = "✓" if matched else "⚠"
+        else:
+            sym = "—"
+        summary_rows.append((
+            "MOA ↔ EID Name Match",
+            f"EID: {eid_n or '—'}  |  MOA: {', '.join(moa_names) if moa_names else '—'}",
+            sym,
+        ))
+
+    # 7. Visa ↔ EID — name and expiry
+    if visa_up:
+        v_parts: list[str] = []
+        v_syms:  list[str] = []
+        if eid_up:
+            eid_n  = _v(eid,  "holder_name", "")
+            visa_n = _v(visa, "holder_name", "")
+            nm_sym = _id_name_match(eid_n, visa_n)
+            v_parts.append(f"Name {nm_sym} (EID: {eid_n or '—'} / Visa: {visa_n or '—'})")
+            v_syms.append(nm_sym)
+        v_parts.append(f"Visa Expiry: {visa_label}")
+        v_syms.append(visa_sym)
+        if "✗" in v_syms:
+            combined = "✗"
+        elif "⚠" in v_syms:
+            combined = "⚠"
+        elif all(s == "✓" for s in v_syms):
+            combined = "✓"
+        else:
+            combined = "—"
+        summary_rows.append((
+            "Residence Visa ↔ EID (Name & Expiry)",
+            "  |  ".join(v_parts),
+            combined,
+        ))
+
+    # 8. MOA Arabic name ↔ EID Arabic name (when MOA carries Arabic names)
+    if moa_up and eid_up:
+        first_sh = _moa_shareholders_summary[0] if _moa_shareholders_summary else {}
+        moa_ar = (
+            _v(moa, "owner_name_arabic", "")
+            or _s(first_sh.get("name_arabic", "")).strip()
+            or _v(moa, "manager_name_arabic", "")
+        )
+        eid_ar = _v(eid, "holder_name_arabic", "")
+        if moa_ar and moa_ar != "—" and eid_ar and eid_ar != "—":
+            moa_ar_clean = re.sub(r"\s+", " ", str(moa_ar).strip())
+            eid_ar_clean = re.sub(r"\s+", " ", str(eid_ar).strip())
+            if (moa_ar_clean == eid_ar_clean
+                    or moa_ar_clean in eid_ar_clean
+                    or eid_ar_clean in moa_ar_clean):
+                ar_sym = "✓"
+            else:
+                # Token-set overlap for partial matches (re-ordered names)
+                moa_tok = set(moa_ar_clean.split())
+                eid_tok = set(eid_ar_clean.split())
+                overlap = moa_tok & eid_tok
+                ar_sym = "✓" if overlap and len(overlap) >= min(len(moa_tok), len(eid_tok)) else "⚠"
+            summary_rows.append((
+                "MOA ↔ EID Arabic Name Match",
+                f"MOA (Arabic): {moa_ar}  |  EID (Arabic): {eid_ar}",
+                ar_sym,
+            ))
+
+    # 9. MOA signatory mentioned
+    if moa_up:
+        sig = _v(moa, "authorised_signatory", "")
+        sa  = _v(moa, "signing_authority", "")
+        sm  = _v(moa, "signing_mode", "")
+        mgr = _v(moa, "manager_name", "")
+        if sig and sig != "—":
+            sig_detail = sig + (f"  |  Mode: {sm}" if sm and sm != "—" else "")
+            sig_sym = "✓"
+        elif sa and sa != "—":
+            sig_detail = sa + (f"  |  Mode: {sm}" if sm and sm != "—" else "")
+            sig_sym = "✓"
+        elif mgr and mgr != "—":
+            sig_detail = f"Manager: {mgr} (no explicit signatory clause)"
+            sig_sym = "⚠"
+        else:
+            sig_detail = "Not mentioned in MOA"
+            sig_sym = "✗"
+        summary_rows.append((
+            "MOA Signatory Mentioned",
+            sig_detail,
+            sig_sym,
+        ))
+
+    if summary_rows:
+        _section_header(doc, n, "Executive Summary"); n += 1
+        _summary_table(doc, summary_rows)
+        doc.add_page_break()
 
     # ══════════════════════════════════════════════════════════════════════════
     # 1 — COMPANY DETAILS
@@ -1002,6 +1247,9 @@ def generate_kyc_document(extracted: dict, analysis: dict | None, today: date) -
                     p_rows.append(("─── PASSPORT ───────────────────────────────────────", ""))
                     if ppp.get("holder_name"):
                         p_rows.append(("Name", _v(ppp, "holder_name")))
+                        ppp_eid_fmt = _passport_eid_format(ppp)
+                        if ppp_eid_fmt and ppp_eid_fmt != _v(ppp, "holder_name"):
+                            p_rows.append(("Name (EID format)", ppp_eid_fmt))
                     if ppp.get("passport_number"):
                         p_rows.append(("Passport No.",   _v(ppp, "passport_number")))
                     if ppp.get("date_of_birth"):
@@ -1051,6 +1299,11 @@ def generate_kyc_document(extracted: dict, analysis: dict | None, today: date) -
             # ── Single-partner personal documents (original logic) ────────
             if pp_up and pp:
                 rows.append(("─── PASSPORT ───────────────────────────────────────", ""))
+                if pp.get("holder_name"):
+                    rows.append(("Name (Passport)",  _v(pp, "holder_name")))
+                    pp_eid_fmt = _passport_eid_format(pp)
+                    if pp_eid_fmt and pp_eid_fmt != _v(pp, "holder_name"):
+                        rows.append(("Name (EID format)", pp_eid_fmt))
                 if pp.get("passport_number"):
                     rows.append(("Passport No.",    _v(pp, "passport_number")))
                 if pp.get("date_of_birth"):

@@ -15,11 +15,14 @@ import json
 import re
 
 from anthropic import AsyncAnthropic
-from app.config import ANTHROPIC_API_KEY
+from openai import AsyncOpenAI
+from app.config import ANTHROPIC_API_KEY, OPENAI_API_KEY
 
 client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 _MODEL = "claude-sonnet-4-6"
+_OCR_MODEL = "gpt-5"
 
 
 # Shared attestation block — emitted on every corporate-shareholder doc extraction.
@@ -82,6 +85,13 @@ _EXTRACT_PROMPTS = {
         "Combine surname + given names into one readable full name. "
         "If ONLY Arabic name is visible, transliterate it to English. "
         "MRZ fallback: P<COUNTRY_SURNAME<<GIVEN<NAMES — replace << with space, < with space, trim extra spaces.\n"
+        '- "given_names": Given names / first names ONLY (without surname), in English. '
+        "From the MRZ this is everything after the << separator on line 1.\n"
+        '- "surname": Surname / family name ONLY, in English. From the MRZ this is the part '
+        "before the << separator on line 1 (after the 3-letter country code).\n"
+        '- "father_name": Father\'s name in English if printed (some passports show "Father\'s Name", '
+        '"Name of Father", "اسم الأب", or include it on the address/family page). '
+        "If ONLY Arabic, transliterate. Set to null if genuinely absent.\n"
         '- "holder_name_arabic": Full name in Arabic script if present, otherwise null.\n\n'
         "PASSPORT:\n"
         '- "passport_number": Alphanumeric passport number (typically 6-9 characters). '
@@ -568,10 +578,15 @@ _EXTRACT_PROMPTS = {
         "GRANTEE / ATTORNEY (الوكيل):\n"
         '- "grantee_name": Full name of the grantee in English. If ONLY Arabic, transliterate.\n'
         '- "grantee_name_arabic": Grantee name in Arabic, null if absent.\n'
-        '- "grantee_designation": Grantee role, null if absent.\n'
+        '- "grantee_designation": Grantee role / profession (e.g., "Manager", "Accountant"), null if absent. '
+        "Critical: copy any profession/occupation text verbatim — used for conflict-of-interest checks.\n"
         '- "grantee_id_number": Grantee Emirates ID number, null if absent.\n'
         '- "grantee_passport_number": Grantee passport number, null if absent.\n'
-        '- "grantee_nationality": Grantee nationality, null if absent.\n\n'
+        '- "grantee_nationality": Grantee nationality, null if absent.\n'
+        '- "grantee_date_of_birth": Grantee date of birth in YYYY-MM-DD if printed, null if absent. '
+        "Used to confirm the grantee is at least 21 years old per UAE notarial practice.\n"
+        '- "grantee_uae_resident": true if the document explicitly states the grantee resides in the UAE '
+        "or carries a UAE address, false if it explicitly states a non-UAE residence, null if not stated.\n\n"
         "COMPANY:\n"
         '- "company_name": Company name referenced in the POA, null if absent.\n'
         '- "licence_number": Trade licence number, null if absent.\n\n'
@@ -716,6 +731,123 @@ _EXTRACT_PROMPTS = {
         "IMPORTANT: Only extract values actually present in the text. Do NOT invent or guess.\n"
         "Set a field to null ONLY if genuinely absent."
     ),
+    "free_zone_license": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "UAE Free Zone Licence (DMCC, IFZA, RAKEZ, UAQ FTZ, JAFZA, ADGM, DIFC, etc.).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": English company name. If ONLY Arabic, transliterate.\n'
+        '- "company_name_arabic": Arabic company name, null if absent.\n'
+        '- "license_number": Licence number.\n'
+        '- "free_zone": Issuing free-zone authority (e.g., "DMCC", "IFZA", "RAKEZ").\n'
+        '- "legal_form": Legal structure (e.g., "FZ-LLC", "Branch", "Establishment").\n'
+        '- "branch_status": "branch" if the licence is a branch of a foreign entity, "main" otherwise.\n\n'
+        "DATES:\n"
+        '- "issue_date": Issue date in YYYY-MM-DD.\n'
+        '- "expiry_date": Expiry date in YYYY-MM-DD.\n\n'
+        "ADDRESS / CONTACT:\n"
+        '- "registered_address": Full registered address.\n'
+        '- "phone": Phone, null if absent.\n'
+        '- "email": Email, null if absent.\n\n'
+        "MANAGER / OWNER:\n"
+        '- "manager_name": Manager English name.\n'
+        '- "owner_name": Owner / shareholder English name.\n'
+        '- "owner_nationality": Owner nationality, null if absent.\n\n'
+        "ACTIVITY:\n"
+        '- "business_activity": Primary activity in English.\n'
+        '- "activity_scope": Full activity description, null if absent.\n\n'
+        "CRITICAL DATE RULES: convert DD/MM/YYYY to YYYY-MM-DD. Set fields to null when absent."
+    ),
+    "dcci_membership": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Dubai Chamber of Commerce & Industry (DCCI) Membership Certificate.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        '- "company_name": Member company name in English.\n'
+        '- "company_name_arabic": Member company name in Arabic, null if absent.\n'
+        '- "membership_number": DCCI membership / registration number.\n'
+        '- "issue_date": Issue date in YYYY-MM-DD.\n'
+        '- "expiry_date": Expiry date in YYYY-MM-DD.\n'
+        '- "membership_category": Category if printed (e.g., "Active", "Premium"), null if absent.\n'
+        '- "issuing_authority": e.g., "Dubai Chamber of Commerce".\n\n'
+        "Convert DD/MM/YYYY → YYYY-MM-DD. Set absent fields to null."
+    ),
+    "renewal_receipt": (
+        "You are an expert document data extractor. The text below was transcribed from a UAE "
+        "trade-licence renewal receipt or fee-payment voucher (DED, Trakhees, free-zone authority).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        '- "company_name": Company name on the receipt.\n'
+        '- "license_number": Licence number referenced on the receipt, null if absent.\n'
+        '- "receipt_number": Receipt or transaction number.\n'
+        '- "payment_date": Payment date in YYYY-MM-DD.\n'
+        '- "fee_amount": Fee amount with currency (e.g., "AED 12,910").\n'
+        '- "procedure_type": Procedure (e.g., "Trade Licence Renewal", "New Licence", "Amendment").\n'
+        '- "issuing_authority": Issuing department (e.g., "Dubai Economy", "DMCC").\n'
+        '- "payer_name": Payer name if printed, null if absent.\n\n'
+        "Convert DD/MM/YYYY → YYYY-MM-DD. Set absent fields to null."
+    ),
+    "audited_financials": (
+        "You are an expert document data extractor. The text below was transcribed from "
+        "audited financial statements / auditor's report (UAE or foreign).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        '- "company_name": Audited entity name.\n'
+        '- "auditor_name": Audit firm name.\n'
+        '- "auditor_registration": Auditor registration / licence number, null if absent.\n'
+        '- "financial_year_end": Reporting period end date in YYYY-MM-DD.\n'
+        '- "report_date": Date the auditor signed the report in YYYY-MM-DD.\n'
+        '- "audit_opinion": Opinion type (e.g., "Unqualified", "Qualified", "Adverse", '
+        '"Disclaimer of Opinion"), null if absent.\n'
+        '- "currency": Currency of the statements (e.g., "AED", "USD"), null if absent.\n'
+        '- "total_assets": Total assets value as a string (with currency), null if absent.\n'
+        '- "total_revenue": Total revenue / turnover value as a string, null if absent.\n'
+        '- "net_profit": Net profit / loss value as a string, null if absent.\n'
+        '- "fiscal_years_covered": Array of YYYY year strings covered by the report '
+        '(e.g., ["2024", "2023"]).\n\n'
+        "Convert DD/MM/YYYY → YYYY-MM-DD. Set absent fields to null."
+    ),
+    "ubo_declaration": (
+        "You are an expert document data extractor. The text below was transcribed from "
+        "an Ultimate Beneficial Owner (UBO) declaration / Real-Beneficiary register filing "
+        "(per UAE Cabinet Decision 58/2020 and equivalent foreign rules).\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        "COMPANY:\n"
+        '- "company_name": Declaring entity name.\n'
+        '- "license_number": Trade licence / registration number, null if absent.\n'
+        '- "declaration_date": Declaration date in YYYY-MM-DD.\n'
+        '- "declared_by": Name and role of the person signing the declaration, null if absent.\n\n'
+        "BENEFICIAL OWNERS:\n"
+        '- "ubos": Array of UBO objects. For EACH UBO listed:\n'
+        '    - "name": Full name in English.\n'
+        '    - "name_arabic": Full name in Arabic, null if absent.\n'
+        '    - "nationality": Nationality.\n'
+        '    - "passport_number": Passport number, null if absent.\n'
+        '    - "id_number": Emirates ID number, null if absent.\n'
+        '    - "date_of_birth": DOB in YYYY-MM-DD, null if absent.\n'
+        '    - "place_of_birth": Place of birth, null if absent.\n'
+        '    - "share_percentage": Beneficial-ownership percentage (e.g., "100%", "25%").\n'
+        '    - "control_basis": Basis of control (e.g., "Direct ownership", "Voting rights"), '
+        "null if absent.\n"
+        '    - "address": Residential address, null if absent.\n\n'
+        "Set absent fields to null. Convert DD/MM/YYYY → YYYY-MM-DD."
+    ),
+    "specimen_signatures": (
+        "You are an expert document data extractor. The text below was transcribed from a "
+        "Specimen Signatures certificate / signature card naming the persons authorised to "
+        "sign on behalf of a corporate shareholder or the UAE entity.\n\n"
+        "Extract ALL of the following fields and return ONLY a valid JSON object:\n\n"
+        '- "company_name": Issuing entity name.\n'
+        '- "registration_number": Company registration / licence number, null if absent.\n'
+        '- "issue_date": Date the certificate was issued in YYYY-MM-DD.\n'
+        '- "issuing_authority": Authority that certified the signatures (notary, registrar, '
+        "corporate secretary), null if absent.\n"
+        '- "signatories": Array of signatory objects. For each named person:\n'
+        '    - "name": Full name in English.\n'
+        '    - "designation": Role / title (e.g., "Director", "Manager", "Authorised Signatory").\n'
+        '    - "passport_number": Passport number, null if absent.\n'
+        '    - "id_number": Emirates ID number, null if absent.\n'
+        '    - "signing_mode": Signing mode for this person (e.g., "Solely", "Jointly with another"), '
+        "null if absent.\n\n"
+        "Set absent fields to null."
+    ),
     "certificate_of_good_standing": (
         "You are an expert document data extractor. The text below was transcribed from a "
         "Certificate of Good Standing / Incumbency certificate issued by a corporate registry.\n\n"
@@ -779,26 +911,27 @@ async def extract_for_kyc(files: list[tuple[bytes, str]], doc_type: str) -> dict
     for file_bytes, filename in files:
         images.extend(_bytes_to_base64_images(file_bytes, filename))
 
-    # ── Step 1: transcribe all pages (bilingual OCR) ─────────────────────────
+    # ── Step 1: transcribe all pages (bilingual OCR via GPT-5 vision) ────────
     content_blocks = []
     for b64, media_type in images:
         content_blocks.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": media_type, "data": b64},
+            "type": "image_url",
+            "image_url": {"url": f"data:{media_type};base64,{b64}", "detail": "high"},
         })
     content_blocks.append({
         "type": "text",
         "text": "Transcribe all text visible in this document. Include ALL Arabic and English text, every number, date, and code.",
     })
 
-    ocr_resp = await client.messages.create(
-        model=_MODEL,
-        system=_OCR_SYSTEM,
-        messages=[{"role": "user", "content": content_blocks}],
-        max_tokens=4000,
-        temperature=0,
+    ocr_resp = await _openai_client.chat.completions.create(
+        model=_OCR_MODEL,
+        messages=[
+            {"role": "system", "content": _OCR_SYSTEM},
+            {"role": "user", "content": content_blocks},
+        ],
+        reasoning_effort="minimal",
     )
-    transcription = ocr_resp.content[0].text.strip()
+    transcription = (ocr_resp.choices[0].message.content or "").strip()
     print(f"[OCR transcription for {doc_type}]:\n{transcription[:800]}", flush=True)
 
     if not transcription:
@@ -830,3 +963,155 @@ async def extract_for_kyc(files: list[tuple[bytes, str]], doc_type: str) -> dict
         return json.loads(raw)
     except json.JSONDecodeError:
         return {"error": f"Could not parse {doc_type.replace('_', ' ')} data."}
+
+
+# ── Document classification (for bulk-upload UI) ───────────────────────────────
+
+_CLASSIFY_TYPES = {
+    "passport", "emirates_id", "residence_visa", "trade_license", "ejari",
+    "moa", "insurance", "vat_certificate", "board_resolution", "poa",
+    "partners_annex", "certificate_of_incorporation", "register_of_shareholders",
+    "register_of_directors", "certificate_of_good_standing",
+    "free_zone_license", "dcci_membership", "renewal_receipt",
+    "audited_financials", "ubo_declaration", "specimen_signatures",
+    "unknown",
+}
+
+_CLASSIFY_SYSTEM = (
+    "You are a UAE KYC document classifier. Identify the document type from its header, "
+    "issuing-authority logo/seal, layout and key phrases. Return ONLY a JSON object:\n"
+    '{"doc_type": "<allowed value>", "confidence": "high|medium|low", "reason": "<≤15 words, cite the visible cue>"}\n\n'
+    "ALLOWED VALUES with discriminating cues (English + common Arabic header):\n"
+    "- passport — passport booklet page; MRZ at bottom (P< / two-line `<<<`); 'PASSPORT / جواز سفر'; "
+    "any country (UAE, India, Pakistan, Bangladesh, UK, etc.). NOT a visa sticker.\n"
+    "- emirates_id — UAE Emirates ID card (polycarbonate). Front: photo + 'United Arab Emirates / "
+    "الهوية' + 784-XXXX-XXXXXXX-X. Back: card-holder signature + occupation + chip; treat front AND "
+    "back BOTH as emirates_id.\n"
+    "- residence_visa — visa sticker INSIDE a passport page or e-visa PDF; 'Residence / إقامة', "
+    "'U.I.D. No', 'Visa File No', sponsor name. NOT the EID card.\n"
+    "- trade_license — UAE mainland trade licence: 'Trade Licence / الرخصة التجارية' issued by DED "
+    "(Department of Economic Development / Economic Department) of an emirate. Has Licence No., "
+    "legal form, partners list. NOT a free-zone authority.\n"
+    "- free_zone_license — UAE free-zone licence: header names a free-zone authority — DMCC, IFZA, "
+    "RAKEZ, RAK ICC, JAFZA, DAFZA, ADGM, DIFC, SHAMS, Meydan, UAQ FTZ, Dubai South, KIZAD, "
+    "Fujairah Creative City, twofour54, Masdar. NOT DED.\n"
+    "- ejari — Dubai Ejari tenancy contract (RERA-registered). Header 'Ejari / إيجاري' or 'Tenancy "
+    "Contract' with Ejari contract number / Dubai Land Department / RERA logo. Tawtheeq (Abu Dhabi) "
+    "and other emirate tenancy contracts also map here.\n"
+    "- moa — Memorandum / Articles of Association. Long contract document, 'Memorandum of "
+    "Association / عقد التأسيس', clauses about capital, share split, partners, manager. "
+    "Bilingual columns common. NOT a one-page resolution.\n"
+    "- board_resolution — short 'Resolution' document: 'Board Resolution', 'Shareholders' Resolution', "
+    "'RESOLVED THAT…' clauses. Authorises a specific act (open bank account, appoint signatory). "
+    "Usually 1-3 pages. NOT a full MOA.\n"
+    "- poa — 'Power of Attorney / توكيل'. Grantor appoints a named attorney-in-fact. Often "
+    "notarised by UAE notary public or foreign notary + embassy. NOT a board resolution.\n"
+    "- partners_annex — Partners' Annex / Shareholders Appendix attached to the MOA, listing "
+    "partners with shares. Header often 'Annex' or 'ملحق الشركاء'.\n"
+    "- insurance — insurance policy / certificate; insurer logo (Oman Insurance, AXA, Orient, etc.); "
+    "'Policy No.', 'Sum Insured', cover period.\n"
+    "- vat_certificate — single-page UAE VAT registration certificate from Federal Tax Authority "
+    "(FTA / الهيئة الاتحادية للضرائب). Shows TRN (15-digit) + effective date. NOT a tax invoice.\n"
+    "- certificate_of_incorporation — Certificate of Incorporation issued at company formation by a "
+    "registrar (Companies House UK, ADGM Registrar, BVI FSC, etc.). States the company is duly "
+    "incorporated. One-page.\n"
+    "- certificate_of_good_standing — Certificate of Good Standing / Incumbency / Continued "
+    "Existence. Issued AFTER incorporation to confirm current active status. NOT the incorporation "
+    "certificate.\n"
+    "- register_of_shareholders — formal Register of Shareholders / Members maintained by company "
+    "secretary; columnar table of shareholders, share class, count, dates of allotment/transfer.\n"
+    "- register_of_directors — Register of Directors / Officers; columnar table of directors with "
+    "appointment / resignation dates.\n"
+    "- dcci_membership — Dubai Chamber of Commerce & Industry membership certificate ONLY. "
+    "Specifically the DCCI logo + 'Member of Dubai Chamber'.\n"
+    "- renewal_receipt — trade-licence renewal RECEIPT / payment voucher / fee invoice. Short, "
+    "shows fees paid + receipt number. NOT the licence itself.\n"
+    "- audited_financials — Audited Financial Statements / Auditor's Report. Multi-page; auditor's "
+    "opinion + Balance Sheet + Profit & Loss + signature of audit firm.\n"
+    "- ubo_declaration — Ultimate Beneficial Owner declaration / Real-Beneficiary register / "
+    "'UBO Form'. Lists natural persons owning ≥25%.\n"
+    "- specimen_signatures — Specimen Signatures certificate / signature card; sample signatures of "
+    "authorised signatories, often attested.\n"
+    "- unknown — only if no discriminator above is visible.\n\n"
+    "DISAMBIGUATION RULES (apply in order):\n"
+    "1. If the issuer is a UAE free-zone authority → free_zone_license, NEVER trade_license.\n"
+    "2. If the page is a visa sticker inside a passport booklet → residence_visa, NOT passport.\n"
+    "3. The back of an Emirates ID card → emirates_id (same type as the front).\n"
+    "4. 'Memorandum of Association' (multi-clause contract) → moa; one-page 'Resolution' → "
+    "board_resolution; 'Power of Attorney' → poa — these are NOT interchangeable.\n"
+    "5. 'Certificate of Incorporation' (formed-on date) ≠ 'Good Standing' (currently-active).\n"
+    "6. Tenancy contract from any emirate → ejari (Dubai Ejari is the canonical case).\n\n"
+    "CONFIDENCE:\n"
+    "- high  — issuer logo / mandatory header phrase clearly visible.\n"
+    "- medium — layout matches but logo/header partially visible.\n"
+    "- low   — guessing from weak cues.\n\n"
+    "Output: ONLY the JSON object, no markdown fences, no commentary."
+)
+
+
+def _classify_image(file_bytes: bytes, filename: str) -> tuple[str, str] | None:
+    """Render a small first-page image for the classifier only.
+    PDFs → page 1 at 150 DPI (vs 300 DPI used by extraction) for ~4× smaller payload.
+    Raster files are passed through unchanged — already small."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext == "pdf":
+        try:
+            import fitz
+        except ImportError:
+            raise RuntimeError("Install pymupdf: pip install pymupdf")
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        if len(doc) == 0:
+            doc.close()
+            return None
+        pix = doc[0].get_pixmap(dpi=150)
+        img_bytes = pix.tobytes("png")
+        doc.close()
+        return base64.b64encode(img_bytes).decode(), "image/png"
+    media_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    media_type = media_map.get(ext, "image/jpeg")
+    return base64.b64encode(file_bytes).decode(), media_type
+
+
+async def classify_document(file_bytes: bytes, filename: str) -> dict:
+    """Classify a single document into one of the supported KYC doc types.
+    Uses GPT-5 vision on the first page only — low detail + minimal reasoning + short cap."""
+    try:
+        img = _classify_image(file_bytes, filename)
+    except Exception as exc:
+        return {"doc_type": "unknown", "confidence": "low", "reason": f"read error: {exc}"}
+    if img is None:
+        return {"doc_type": "unknown", "confidence": "low", "reason": "empty file"}
+
+    b64, media_type = img
+    try:
+        resp = await _openai_client.chat.completions.create(
+            model=_OCR_MODEL,
+            messages=[
+                {"role": "system", "content": _CLASSIFY_SYSTEM},
+                {"role": "user", "content": [
+                    {"type": "image_url",
+                     "image_url": {"url": f"data:{media_type};base64,{b64}", "detail": "low"}},
+                    {"type": "text", "text": "Classify this document. Return JSON only."},
+                ]},
+            ],
+            reasoning_effort="minimal",
+            max_completion_tokens=120,
+            response_format={"type": "json_object"},
+        )
+        text = _strip_json_fences((resp.choices[0].message.content or "").strip())
+        result = json.loads(text)
+        dt = result.get("doc_type", "unknown")
+        if dt not in _CLASSIFY_TYPES:
+            dt = "unknown"
+        conf = result.get("confidence", "medium")
+        if conf not in ("high", "medium", "low"):
+            conf = "medium"
+        return {
+            "doc_type": dt,
+            "confidence": conf,
+            "reason": (result.get("reason") or "")[:160],
+        }
+    except json.JSONDecodeError:
+        return {"doc_type": "unknown", "confidence": "low", "reason": "parse error"}
+    except Exception as exc:
+        return {"doc_type": "unknown", "confidence": "low", "reason": f"classify error: {exc}"}

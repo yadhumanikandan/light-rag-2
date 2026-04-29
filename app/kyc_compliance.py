@@ -70,12 +70,14 @@ def _compute_validity(extracted: dict, today: date) -> dict:
     out: dict = {}
 
     pairs = [
-        ("trade_license",    "expiry_date"),
-        ("ejari",            "expiry_date"),
-        ("insurance",        "valid_to"),
-        ("emirates_id",      "expiry_date"),
-        ("passport",         "expiry_date"),
-        ("residence_visa",   "expiry_date"),
+        ("trade_license",     "expiry_date"),
+        ("ejari",             "expiry_date"),
+        ("insurance",         "valid_to"),
+        ("emirates_id",       "expiry_date"),
+        ("passport",          "expiry_date"),
+        ("residence_visa",    "expiry_date"),
+        ("free_zone_license", "expiry_date"),
+        ("dcci_membership",   "expiry_date"),
     ]
     for key, field in pairs:
         node = extracted.get(key) or {}
@@ -383,20 +385,34 @@ def _assess_moa_authority(extracted: dict) -> dict:
         br_signatory, moa_manager
     )
 
+    # Spec 5B row 5: Manager has changed since the MOA was signed (TL manager
+    # ≠ MOA manager). Detect this even when no BR has been uploaded.
+    tl = extracted.get("trade_license") or {}
+    tl_manager = _s(tl.get("manager_name"))
+    manager_changed = (
+        bool(tl_manager) and bool(moa_manager)
+        and not _names_match(tl_manager, moa_manager)
+    )
+
     if not sufficient:
         reason = "MOA silent on banking authority" if not explicit else "No named signatory"
     elif signatory_differs:
-        reason = "Current signatory differs from MOA-named manager"
+        reason = "Current BR signatory differs from MOA-named manager"
+    elif manager_changed:
+        reason = (f"Current Trade Licence manager ({tl_manager}) "
+                  f"differs from MOA-named manager ({moa_manager})")
     else:
         reason = "MOA grants explicit banking authority to a named signatory"
 
     return {
-        "sufficient":          sufficient and not signatory_differs,
+        "sufficient":          sufficient and not signatory_differs and not manager_changed,
         "signing_mode":        signing_mode,
         "powers":              powers_out,
         "named_signatory":     _s(named) or None,
-        "resolution_required": (not sufficient) or signatory_differs,
+        "resolution_required": (not sufficient) or signatory_differs or manager_changed,
         "reason":              reason,
+        "manager_changed":     manager_changed,
+        "tl_manager":          tl_manager or None,
     }
 
 
@@ -645,7 +661,9 @@ _CORPORATE_DOC_LABELS = {
     "register_of_directors":        "Register of Directors",
     "certificate_of_good_standing": "Certificate of Good Standing",
     "corporate_moa_aoa":            "Memorandum & Articles of Association (corporate)",
-    "audited_financial_statements": "Audited financial statements (last 2 years)",
+    "audited_financials":           "Audited financial statements (last 2 years)",
+    "ubo_declaration":              "Ultimate Beneficial Owner (UBO) declaration",
+    "specimen_signatures":          "Specimen signatures of directors",
 }
 
 
@@ -672,6 +690,137 @@ def _merge_attestation(blocks: list[dict]) -> dict:
         "stage2_home_country": {"notary": s2_notary, "mfa": s2_mfa, "apostille": s2_apost},
         "stage3_uae_embassy":  {"present": s3_present},
         "stage4_uae_mofa":     {"present": s4_present},
+    }
+
+
+# Spec 7E — country-specific attestation chains. Routes return a list of
+# stages the document must pass through, in order. The list always terminates
+# with UAE MOFA counter-attestation on UAE soil.
+#
+# Hague Apostille countries get a shorter Stage-2 (single Apostille certificate).
+# Non-Hague countries need notary → home MFA → UAE Embassy explicitly.
+
+_HAGUE_COUNTRIES = {
+    "united kingdom", "uk", "great britain", "england", "scotland", "wales",
+    "luxembourg", "germany", "france", "italy", "spain", "netherlands",
+    "belgium", "switzerland", "austria", "portugal", "greece", "ireland",
+    "denmark", "sweden", "norway", "finland", "poland", "czech republic",
+    "hungary", "australia", "new zealand", "japan", "south korea", "korea",
+    "south africa", "mexico", "brazil", "argentina", "russia", "turkey",
+    "cyprus", "malta", "estonia", "latvia", "lithuania", "slovenia", "slovakia",
+    "croatia", "bulgaria", "romania",
+}
+
+_COUNTRY_ROUTES = {
+    "united kingdom": ["Certified English translation",
+                       "Apostille (UK FCDO)",
+                       "UAE Embassy London legalisation",
+                       "UAE MOFA counter-attestation"],
+    "united states":  ["Certified English translation",
+                       "State Notary Public",
+                       "State MFA / Secretary of State",
+                       "UAE Embassy (Washington / NY / LA) legalisation",
+                       "UAE MOFA counter-attestation"],
+    "india":          ["Certified English translation",
+                       "Notary Public (India)",
+                       "MEA (Ministry of External Affairs) attestation",
+                       "UAE Embassy (New Delhi / Mumbai / Chennai) legalisation",
+                       "UAE MOFA counter-attestation"],
+    "iran":           ["Certified English translation",
+                       "Notary Public (Iran)",
+                       "MFA Iran attestation (no Apostille)",
+                       "UAE Embassy Tehran legalisation",
+                       "UAE MOFA counter-attestation"],
+    "china":          ["Certified English translation",
+                       "CCPIT or Notary Office (China)",
+                       "MFA China attestation",
+                       "UAE Embassy (Beijing / Shanghai) legalisation",
+                       "UAE MOFA counter-attestation"],
+    "pakistan":       ["Certified English translation",
+                       "Notary Public (Pakistan)",
+                       "MOFA Pakistan attestation",
+                       "UAE Embassy (Islamabad / Karachi) legalisation",
+                       "UAE MOFA counter-attestation"],
+    "saudi arabia":   ["Certified English translation",
+                       "MFA KSA attestation",
+                       "UAE Embassy Riyadh legalisation",
+                       "UAE MOFA counter-attestation"],
+    "luxembourg":     ["Certified English translation",
+                       "Apostille (Luxembourg)",
+                       "UAE Embassy legalisation",
+                       "UAE MOFA counter-attestation"],
+}
+
+
+def _attestation_path_for(country: str | None) -> dict:
+    """Return the attestation chain for a given home jurisdiction.
+
+    Output: {
+      "country": <normalised country>,
+      "is_hague": bool | None,
+      "stages": [<ordered chain>],
+      "notes": <free text caveats>,
+    }
+    """
+    if not country:
+        return {
+            "country": None,
+            "is_hague": None,
+            "stages": [
+                "Certified English translation",
+                "Home country Notary + MFA attestation OR Apostille (Hague countries only)",
+                "UAE Embassy legalisation in country of origin",
+                "UAE MOFA counter-attestation in UAE",
+            ],
+            "notes": "Jurisdiction not stated; default 4-stage chain applies.",
+        }
+    norm = country.strip().lower()
+    # Direct match.
+    if norm in _COUNTRY_ROUTES:
+        return {
+            "country":  country,
+            "is_hague": norm in _HAGUE_COUNTRIES,
+            "stages":   _COUNTRY_ROUTES[norm],
+            "notes":    None,
+        }
+    # Hague fallback (Apostille flow).
+    if any(norm == h or norm in h or h in norm for h in _HAGUE_COUNTRIES):
+        return {
+            "country":  country,
+            "is_hague": True,
+            "stages": [
+                "Certified English translation",
+                f"Apostille issued in {country}",
+                "UAE Embassy legalisation in country of origin",
+                "UAE MOFA counter-attestation in UAE",
+            ],
+            "notes": "Hague Convention country — Apostille satisfies Stage 2.",
+        }
+    # GCC bilateral fallback.
+    if norm in ("kuwait", "bahrain", "oman", "qatar"):
+        return {
+            "country":  country,
+            "is_hague": False,
+            "stages": [
+                "Certified English translation (if not in Arabic)",
+                f"MFA {country} attestation",
+                f"UAE Embassy {country} legalisation",
+                "UAE MOFA counter-attestation in UAE",
+            ],
+            "notes": "GCC bilateral attestation arrangement may simplify steps — verify per country.",
+        }
+    # Non-Hague generic.
+    return {
+        "country":  country,
+        "is_hague": False,
+        "stages": [
+            "Certified English translation",
+            f"Notary Public ({country})",
+            f"MFA {country} attestation",
+            f"UAE Embassy {country} legalisation",
+            "UAE MOFA counter-attestation in UAE",
+        ],
+        "notes": "Non-Hague jurisdiction — full 4-stage chain required.",
     }
 
 
@@ -727,13 +876,14 @@ def _corporate_kyc(extracted: dict, shareholders: list[dict]) -> list[dict]:
 
         provided = [d for d in required if d in provided_labels]
         out.append({
-            "entity":        sh["name"],
-            "share_pct":     sh.get("share_pct", ""),
-            "jurisdiction":  sh.get("jurisdiction"),
-            "required_docs": required,
-            "provided":      provided,
-            "missing":       [d for d in required if d not in provided],
-            "attestation":   attestation,
+            "entity":            sh["name"],
+            "share_pct":         sh.get("share_pct", ""),
+            "jurisdiction":      sh.get("jurisdiction"),
+            "required_docs":     required,
+            "provided":          provided,
+            "missing":           [d for d in required if d not in provided],
+            "attestation":       attestation,
+            "attestation_path":  _attestation_path_for(sh.get("jurisdiction")),
         })
     return out
 
@@ -878,7 +1028,8 @@ def _flag(code: str, severity: str, kyc_status: str, *,
 
 def _build_flags(extracted: dict, validity: dict, moa_auth: dict,
                  presence: list[dict], shareholders: list[dict],
-                 corporate_kyc: list[dict], cross: dict) -> list[dict]:
+                 corporate_kyc: list[dict], cross: dict,
+                 poa_status: dict | None = None) -> list[dict]:
     flags: list[dict] = []
 
     # FLAG_01 — MOA silent on banking authority
@@ -935,7 +1086,7 @@ def _build_flags(extracted: dict, validity: dict, moa_auth: dict,
                     recommended_action=f"Initiate {lbl} renewal.",
                 ))
 
-    # FLAG_05 — POA grantee unverified
+    # FLAG_05 — POA grantee unverified / POA notarisation incomplete
     poa = extracted.get("poa") or {}
     if poa and not poa.get("error") and poa.get("grantee_name"):
         grantee = _s(poa["grantee_name"])
@@ -948,8 +1099,94 @@ def _build_flags(extracted: dict, validity: dict, moa_auth: dict,
                 recommended_action="Upload grantee's Passport, Emirates ID, and Visa.",
             ))
 
-    # FLAG_06 — Address mismatch (TL/EJARI/VAT)
-    if (cross.get("addresses") or {}).get("match") == "⚠":
+        # POA notarisation gate (spec 6B).
+        # If signed in UAE → require Notary Public stamp.
+        # If signed abroad → require UAE Embassy + UAE MOFA in addition.
+        notar = poa.get("notarisation") or {}
+        notary_pub  = notar.get("notary_public") if isinstance(notar, dict) else None
+        uae_embassy = notar.get("uae_embassy")   if isinstance(notar, dict) else None
+        mofa        = notar.get("mofa")          if isinstance(notar, dict) else None
+        signed_country = _s(poa.get("signed_in_country") or "").lower()
+        signed_abroad  = bool(poa.get("signed_abroad")) or (
+            bool(signed_country) and "united arab emirates" not in signed_country
+            and "uae" not in signed_country
+        )
+        # Fall back to the legacy `notarised` boolean if structured block is absent.
+        legacy_notarised = poa.get("notarised")
+        if notary_pub is None and isinstance(legacy_notarised, bool):
+            notary_pub = legacy_notarised
+
+        missing_stages: list[str] = []
+        if notary_pub is False or notary_pub is None:
+            missing_stages.append("Notary Public")
+        if signed_abroad:
+            if uae_embassy is False or uae_embassy is None:
+                missing_stages.append("UAE Embassy attestation")
+            if mofa is False or mofa is None:
+                missing_stages.append("UAE MOFA counter-attestation")
+
+        if missing_stages:
+            flags.append(_flag(
+                "FLAG_05B_POA_NOTARISATION_INCOMPLETE", "error", "ON_HOLD",
+                documents_affected=["POA"], field=f"POA — {grantee}",
+                issue=("POA notarisation/attestation incomplete: "
+                       f"{', '.join(missing_stages)}."),
+                recommended_action=(
+                    "POA signed in UAE must be notarised by a UAE Notary Public. "
+                    "POA signed abroad must additionally carry UAE Embassy attestation "
+                    "and UAE MOFA counter-attestation before it can be relied upon for "
+                    "bank account opening."
+                ),
+            ))
+
+    # FLAG_05C — POA grantee not eligible (spec 6C: must be UAE resident,
+    # ≥21 years old, not the company auditor).
+    if poa_status and poa_status.get("present") and poa_status.get("grantee"):
+        elig = poa_status.get("grantee_eligibility") or {}
+        reasons: list[str] = []
+        if elig.get("uae_resident") is False:
+            reasons.append("not a UAE resident (no valid Residence Visa)")
+        if elig.get("eid_valid") is False:
+            reasons.append("Emirates ID not valid")
+        if elig.get("passport_valid") is False:
+            reasons.append("Passport not valid")
+        if elig.get("age_at_least_21") is False:
+            reasons.append("under 21 years of age")
+        if elig.get("not_auditor") is False:
+            reasons.append("conflicted (acts as auditor)")
+        if reasons and not elig.get("eligible"):
+            flags.append(_flag(
+                "FLAG_05C_POA_GRANTEE_INELIGIBLE", "error", "ON_HOLD",
+                documents_affected=["POA"],
+                field=f"POA grantee — {poa_status['grantee']}",
+                issue=("POA grantee fails spec 6C eligibility: "
+                       f"{'; '.join(reasons)}."),
+                recommended_action=(
+                    "Appoint a UAE-resident attorney aged 21+ with valid EID, Passport, "
+                    "and Residence Visa, and no conflict of interest with the company."
+                ),
+            ))
+
+    # FLAG_06 — VAT registered address ≠ Trade Licence address (per spec).
+    # FTA-update language is specific. Emit a separate row when TL vs VAT mismatch,
+    # and a generic mismatch row for any other variance (TL vs EJARI etc.).
+    tl = extracted.get("trade_license") or {}
+    vat = extracted.get("vat_certificate") or {}
+    tl_addr = _s(tl.get("registered_address"))
+    vat_addr = _s(vat.get("registered_address"))
+    if tl_addr and vat_addr and not _equal_norm(tl_addr, vat_addr):
+        flags.append(_flag(
+            "FLAG_06_VAT_ADDRESS_MISMATCH", "warn", "COMPLIANCE_GAP",
+            documents_affected=["Trade Licence", "VAT Certificate"],
+            field="Registered Address",
+            issue=f"VAT registered address ({vat_addr}) differs from Trade Licence "
+                  f"address ({tl_addr}).",
+            recommended_action="Client must update the registered address with the "
+                               "Federal Tax Authority via the EmaraTax portal so it matches "
+                               "the current Trade Licence address. UAE VAT compliance "
+                               "requirement — does not block KYC.",
+        ))
+    elif (cross.get("addresses") or {}).get("match") == "⚠":
         flags.append(_flag(
             "FLAG_06_ADDRESS_MISMATCH", "warn", "COMPLIANCE_GAP",
             documents_affected=["Trade Licence", "EJARI", "VAT"],
@@ -1143,8 +1380,10 @@ def analyse(extracted: dict, today: date) -> dict:
     presence      = _check_presence(extracted, today, moa_auth)
     shareholders  = _classify_shareholders(extracted)
     corporate_kyc = _corporate_kyc(extracted, shareholders)
+    poa_status    = _assess_poa(extracted, today)
     flags         = _build_flags(extracted, validity, moa_auth, presence,
-                                 shareholders, corporate_kyc, cross)
+                                 shareholders, corporate_kyc, cross,
+                                 poa_status=poa_status)
     checklist     = _build_checklist(extracted, validity, moa_auth, presence,
                                      shareholders, corporate_kyc, cross)
     version       = _compute_version(extracted)
@@ -1156,7 +1395,112 @@ def analyse(extracted: dict, today: date) -> dict:
         "presence":      presence,
         "shareholders":  shareholders,
         "corporate_kyc": corporate_kyc,
+        "poa":           poa_status,
         "checklist":     checklist,
         "flags":         flags,
         "version":       version,
+    }
+
+
+# ── POA assessment ──────────────────────────────────────────────────────────
+
+# Spec 6C — POA grantee eligibility.
+# Auditor-conflict words that disqualify a grantee.
+_AUDITOR_HINTS = ("auditor", "audit firm", "external auditor", "chartered accountant")
+
+
+def _assess_poa(extracted: dict, today: date) -> dict:
+    poa = extracted.get("poa") or {}
+    if not poa or poa.get("error"):
+        return {"present": False}
+
+    grantee_name = _s(poa.get("grantee_name") or poa.get("grantee"))
+    grantor_name = _s(poa.get("grantor_name") or poa.get("grantor"))
+
+    # Validity (prefer structured validity_until, fall back to expiry_date).
+    val = _validity_for(poa.get("expiry_date") or poa.get("validity_until"), today)
+    valid_window = val["status"] in ("valid", "expiring_soon") if val else None
+
+    # Notarisation breakdown.
+    notar = poa.get("notarisation") if isinstance(poa.get("notarisation"), dict) else {}
+    signed_country = _s(poa.get("signed_in_country") or "").lower()
+    signed_abroad = bool(poa.get("signed_abroad")) or (
+        bool(signed_country) and "united arab emirates" not in signed_country
+        and "uae" not in signed_country
+    )
+    notary_pub  = notar.get("notary_public")
+    uae_embassy = notar.get("uae_embassy")
+    mofa        = notar.get("mofa")
+    if notary_pub is None and isinstance(poa.get("notarised"), bool):
+        notary_pub = poa["notarised"]
+
+    if signed_abroad:
+        notar_complete = bool(notary_pub) and bool(uae_embassy) and bool(mofa)
+    else:
+        notar_complete = bool(notary_pub)
+
+    # Grantee eligibility (spec 6C).
+    docs = _find_personal_docs(extracted, grantee_name) if grantee_name else {
+        "emirates_id": None, "passport": None, "residence_visa": None,
+    }
+    eid_valid  = docs["emirates_id"]   and _doc_validity_status(docs["emirates_id"], today)   == "valid"
+    pp_valid   = docs["passport"]      and _doc_validity_status(docs["passport"], today)      == "valid"
+    visa_valid = docs["residence_visa"] and _doc_validity_status(docs["residence_visa"], today) == "valid"
+    has_uae_residency = bool(visa_valid) or poa.get("grantee_uae_resident") is True
+
+    # Age check — needs DOB on grantee record (Passport, EID, or POA itself).
+    age_ok: bool | None = None
+    for source in (
+        (docs.get("passport") or {}).get("date_of_birth"),
+        (docs.get("emirates_id") or {}).get("date_of_birth"),
+        poa.get("grantee_date_of_birth"),
+    ):
+        d = _parse_date(source)
+        if d:
+            age = (today - d).days // 365
+            age_ok = age >= 21
+            break
+
+    # Auditor / conflict-of-interest hint.
+    profession = " ".join([
+        _s((docs.get("emirates_id") or {}).get("occupation")),
+        _s((docs.get("residence_visa") or {}).get("profession")),
+        _s(poa.get("grantee_designation")),
+    ]).lower()
+    not_auditor: bool | None = None
+    if profession.strip():
+        not_auditor = not any(h in profession for h in _AUDITOR_HINTS)
+
+    eligible = bool(
+        grantee_name
+        and eid_valid and pp_valid and visa_valid
+        and has_uae_residency
+        and (age_ok is True or age_ok is None)
+        and (not_auditor is True or not_auditor is None)
+    )
+
+    return {
+        "present":            True,
+        "grantor":            grantor_name or None,
+        "grantee":            grantee_name or None,
+        "validity":           val,
+        "within_validity":    valid_window,
+        "signed_abroad":      signed_abroad,
+        "signed_in_country":  poa.get("signed_in_country"),
+        "notarisation": {
+            "notary_public": bool(notary_pub) if notary_pub is not None else None,
+            "uae_embassy":   bool(uae_embassy) if uae_embassy is not None else None,
+            "mofa":          bool(mofa) if mofa is not None else None,
+            "complete":      notar_complete,
+        },
+        "grantee_eligibility": {
+            "eid_valid":          bool(eid_valid),
+            "passport_valid":     bool(pp_valid),
+            "visa_valid":         bool(visa_valid),
+            "uae_resident":       has_uae_residency,
+            "age_at_least_21":    age_ok,
+            "not_auditor":        not_auditor,
+            "eligible":           eligible,
+        },
+        "usable":             bool(notar_complete and eligible and (valid_window is not False)),
     }
