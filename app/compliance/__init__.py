@@ -20,7 +20,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-from app.kyc_generator import _names_match, _s
+from app.generator import _names_match, _s
 
 
 # ── Date helpers ─────────────────────────────────────────────────────────────

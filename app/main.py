@@ -15,12 +15,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
-from app.kyc_compliance import analyse as analyse_compliance
-from app.kyc_extractor import classify_document, extract_for_kyc
-from app.kyc_generator import build_report_data, generate_kyc_document, identify_partners
+from app.compliance import analyse as analyse_compliance
+from app.extractors import classify_document, extract_for_kyc
+from app.generator import build_report_data, generate_kyc_document, identify_partners
 from app.name_reconciler import reconcile_names
-from app.nas_storage import save_to_nas
-from app.passport import check_document, check_passport
+from app.storage import save_to_nas
+from app.expiry import check_document, check_passport
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 logger  = logging.getLogger(__name__)
