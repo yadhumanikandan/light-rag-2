@@ -1,13 +1,15 @@
-// KYC report generator — dropdown picker adds doc-type slots on demand.
+// KYC report generator — all 21 doc types listed; main 5 required, rest optional.
 const KYC = (() => {
-  const DOC_TYPES = [
-    { key: "trade_license",                label: "Trade License" },
+  const MAIN = [
+    { key: "trade_license", label: "Trade License" },
+    { key: "moa",           label: "Memorandum of Association (MOA)" },
+    { key: "ejari",         label: "Ejari" },
+    { key: "passport",      label: "Passport" },
+    { key: "emirates_id",   label: "Emirates ID" },
+  ];
+  const OPTIONAL = [
     { key: "free_zone_license",            label: "Free Zone License" },
-    { key: "ejari",                        label: "Ejari" },
-    { key: "moa",                          label: "Memorandum of Association (MOA)" },
     { key: "partners_annex",               label: "Partners Annex" },
-    { key: "passport",                     label: "Passport" },
-    { key: "emirates_id",                  label: "Emirates ID" },
     { key: "residence_visa",               label: "Residence Visa" },
     { key: "vat_certificate",              label: "VAT Certificate" },
     { key: "insurance",                    label: "Insurance" },
@@ -23,8 +25,6 @@ const KYC = (() => {
     { key: "ubo_declaration",              label: "UBO Declaration" },
     { key: "specimen_signatures",          label: "Specimen Signatures" },
   ];
-  const LABEL = Object.fromEntries(DOC_TYPES.map(d => [d.key, d.label]));
-  const MAIN_KEYS = ["trade_license", "moa", "ejari", "passport", "emirates_id"];
 
   let lastSession = null;
   let lastExtracted = null;
@@ -33,60 +33,39 @@ const KYC = (() => {
 
   const $ = (id) => document.getElementById(id);
 
-  function refreshPicker() {
-    const sel = $("kyc-picker");
-    const used = new Set([
-      ...document.querySelectorAll("#kyc-slots-main .slot"),
-      ...document.querySelectorAll("#kyc-slots-extra .slot"),
-    ].map(s => s.dataset.key));
-    const available = DOC_TYPES.filter(d => !MAIN_KEYS.includes(d.key) && !used.has(d.key));
-    sel.innerHTML = available.length
-      ? `<option value="" disabled selected>Add another document type…</option>` +
-        available.map(d => `<option value="${d.key}">${d.label}</option>`).join("")
-      : `<option value="" disabled selected>All extra document types added</option>`;
-    $("kyc-add").disabled = available.length === 0;
-  }
-
-  function buildSlot(key, { removable }) {
+  function buildSlot({ key, label, optional }) {
     const slot = document.createElement("div");
     slot.className = "slot";
     slot.dataset.key = key;
     slot.innerHTML = `
-      ${removable ? `<button class="slot-remove" type="button" aria-label="Remove">✕</button>` : ""}
-      <div class="slot-label">${LABEL[key]}</div>
-      <div class="slot-hint">Drop files here or click to choose</div>
-      <button class="slot-action" type="button">Choose file(s)</button>
-      <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" />
-      <div class="file-list"></div>`;
+      <div class="slot-label">
+        ${label}
+        ${optional ? `<span class="slot-tag">Optional</span>` : ""}
+      </div>
+      <div class="file-list"></div>
+      <div class="slot-controls">
+        <button class="slot-action" type="button">Choose file(s)</button>
+      </div>
+      <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" />`;
     Uploads.attach(slot, { multi: true });
-    if (removable) {
-      slot.querySelector(".slot-remove").addEventListener("click", (e) => {
-        e.stopPropagation();
-        slot.remove();
-        refreshPicker();
-      });
-    }
     return slot;
   }
 
-  function addExtraSlot(key) {
-    if (!key) return;
-    const grid = $("kyc-slots-extra");
-    if (grid.querySelector(`.slot[data-key="${key}"]`)) return;
-    grid.appendChild(buildSlot(key, { removable: true }));
-    refreshPicker();
-  }
-
-  function buildMainSlots() {
-    const grid = $("kyc-slots-main");
+  function buildAllSlots() {
+    const grid = $("kyc-slots");
     grid.innerHTML = "";
-    MAIN_KEYS.forEach((key) => grid.appendChild(buildSlot(key, { removable: false })));
+    MAIN.forEach((d) => grid.appendChild(buildSlot({ ...d, optional: false })));
+    const divider = document.createElement("div");
+    divider.className = "slot-divider";
+    divider.textContent = "Optional documents";
+    grid.appendChild(divider);
+    OPTIONAL.forEach((d) => grid.appendChild(buildSlot({ ...d, optional: true })));
   }
 
   function collectFormData() {
     const fd = new FormData();
     let total = 0;
-    document.querySelectorAll("#kyc-slots-main .slot, #kyc-slots-extra .slot").forEach((slot) => {
+    document.querySelectorAll("#kyc-slots .slot").forEach((slot) => {
       (slot._files || []).forEach((f) => { fd.append(slot.dataset.key, f); total++; });
     });
     return { fd, total };
@@ -107,7 +86,7 @@ const KYC = (() => {
   async function submit() {
     clearError();
     const { fd, total } = collectFormData();
-    if (total === 0) { showError("Add at least one document and upload a file."); return; }
+    if (total === 0) { showError("Upload at least one document."); return; }
 
     const btn = $("kyc-submit");
     busy(btn, true, "Generating…");
@@ -153,10 +132,11 @@ const KYC = (() => {
           ${["passport","emirates_id","residence_visa"].filter(k => !p[`has_${k}`]).map(k => `
             <div class="slot" data-key="partner_${idx}_${k}">
               <div class="slot-label">${k === "emirates_id" ? "Emirates ID" : k === "residence_visa" ? "Residence Visa" : "Passport"}</div>
-              <div class="slot-hint">PDF or image</div>
-              <button class="slot-action" type="button">Choose file(s)</button>
-              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" />
               <div class="file-list"></div>
+              <div class="slot-controls">
+                <button class="slot-action" type="button">Choose file(s)</button>
+              </div>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" />
             </div>`).join("")}
         </div>`;
       list.appendChild(card);
@@ -230,26 +210,14 @@ const KYC = (() => {
   }
 
   function clearAll() {
-    document.querySelectorAll("#kyc-slots-main .slot").forEach((s) => s._reset && s._reset());
-    document.querySelectorAll("#kyc-slots-extra .slot").forEach((s) => s.remove());
+    document.querySelectorAll("#kyc-slots .slot").forEach((s) => s._reset && s._reset());
     $("kyc-result").classList.add("hidden");
     $("partner-block").classList.add("hidden");
-    refreshPicker();
     clearError();
   }
 
   function init() {
-    buildMainSlots();
-    refreshPicker();
-    $("kyc-add").addEventListener("click", () => {
-      const sel = $("kyc-picker");
-      addExtraSlot(sel.value);
-      sel.value = "";
-    });
-    $("kyc-picker").addEventListener("change", (e) => {
-      addExtraSlot(e.target.value);
-      e.target.value = "";
-    });
+    buildAllSlots();
     $("kyc-submit").addEventListener("click", submit);
     $("kyc-clear").addEventListener("click", clearAll);
     $("kyc-download").addEventListener("click", downloadDocx);
