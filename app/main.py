@@ -22,6 +22,16 @@ from app.name_reconciler import reconcile_names
 from app.storage import save_to_nas
 from app.expiry import check_document, check_passport
 
+# Starlette 1.0 caps each multipart part at 1 MB and returns 413 above that.
+# KYC PDFs (passports, trade licences) routinely exceed this, so raise the cap.
+import starlette.formparsers as _starlette_formparsers
+_MAX_UPLOAD_PART = 100 * 1024 * 1024  # 100 MB per file
+_orig_mp_init = _starlette_formparsers.MultiPartParser.__init__
+def _patched_mp_init(self, *args, **kwargs):
+    kwargs["max_part_size"] = _MAX_UPLOAD_PART
+    _orig_mp_init(self, *args, **kwargs)
+_starlette_formparsers.MultiPartParser.__init__ = _patched_mp_init
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 logger  = logging.getLogger(__name__)
 
@@ -294,7 +304,7 @@ async def generate_kyc_endpoint(
     # reconciliation both partner["name"] and item.holder_name should agree,
     # so _names_match succeeds and has_* flags become true → no phase 2.
     if multi_items and non_corporate:
-        from app.kyc_generator import _names_match, _s
+        from app.generator import _names_match, _s
         new_ppd: list[dict] = []
         for partner in non_corporate:
             entry = {
@@ -469,7 +479,7 @@ async def generate_kyc_complete_endpoint(request: Request):
         pp  = extracted.get("passport") or {}
         eid = extracted.get("emirates_id") or {}
         visa = extracted.get("residence_visa") or {}
-        from app.kyc_generator import _names_match, _s
+        from app.generator import _names_match, _s
         pp_name   = _s(pp.get("holder_name", ""))
         eid_name  = _s(eid.get("holder_name", ""))
         visa_name = _s(visa.get("holder_name", ""))
